@@ -1,0 +1,6 @@
+{"timestamp": "2026-05-03T16:35:29", "event": "PORT_OPENED", "ip": "10.0.0.1", "port": 2222, "message": "Access granted for 30s"}
+{"timestamp": "2026-05-03T16:35:29", "event": "PORT_OPENED", "ip": "10.0.0.2", "port": 2222, "message": "Access granted for 30s"}
+{"timestamp": "2026-05-03T16:35:29", "event": "KNOCK_ATTEMPT", "ip": "192.168.1.1", "port": 7000, "message": "Progress: 1/3"}
+{"timestamp": "2026-05-03T16:35:29", "event": "AUTH_SUCCESS", "ip": "192.168.1.1", "port": 9000, "message": "Sequence complete"}
+{"timestamp": "2026-05-03T16:35:30", "event": "PORT_CLOSED", "ip": "10.0.0.1", "port": 2222, "message": "Access revoked"}
+{"timestamp": "2026-05-03T16:35:30", "event": "PORT_CLOSED", "ip": "10.0.0.1", "port": 2222, "message": "Revoked via API"}

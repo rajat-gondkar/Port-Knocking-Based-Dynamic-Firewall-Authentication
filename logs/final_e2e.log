@@ -1,0 +1,8 @@
+{"timestamp": "2026-05-03T16:35:41", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}
+{"timestamp": "2026-05-03T16:35:41", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 18000, "message": "Progress: 2/3"}
+{"timestamp": "2026-05-03T16:35:42", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 19000, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-05-03T16:35:42", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}
+{"timestamp": "2026-05-03T16:35:43", "event": "ACCESS_GRANTED", "ip": "127.0.0.1", "port": 12222, "message": "Connected to protected service"}
+{"timestamp": "2026-05-03T16:35:43", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Access revoked"}
+{"timestamp": "2026-05-03T16:35:43", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Revoked via API"}
+{"timestamp": "2026-05-03T16:35:43", "event": "ACCESS_DENIED", "ip": "127.0.0.1", "port": 12222, "message": "Connection rejected \u2014 not authenticated"}

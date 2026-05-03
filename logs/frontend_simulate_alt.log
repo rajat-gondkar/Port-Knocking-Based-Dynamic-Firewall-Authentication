@@ -1,0 +1,4 @@
+{"timestamp": "2026-05-03T16:15:55", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}
+{"timestamp": "2026-05-03T16:15:55", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 18000, "message": "Progress: 2/3"}
+{"timestamp": "2026-05-03T16:15:56", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 19000, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-05-03T16:15:56", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}

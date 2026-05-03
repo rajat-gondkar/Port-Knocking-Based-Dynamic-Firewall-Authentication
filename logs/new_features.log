@@ -1,0 +1,8 @@
+{"timestamp": "2026-05-03T16:35:22", "event": "CONFIG_UPDATE", "ip": "127.0.0.1", "port": null, "message": "Sequence changed to [21000, 22000, 23000]"}
+{"timestamp": "2026-05-03T16:35:22", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 21000, "message": "Progress: 1/3"}
+{"timestamp": "2026-05-03T16:35:23", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 22000, "message": "Progress: 2/3"}
+{"timestamp": "2026-05-03T16:35:23", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 23000, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-05-03T16:35:23", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}
+{"timestamp": "2026-05-03T16:35:23", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 21000, "message": "Progress: 1/3"}
+{"timestamp": "2026-05-03T16:35:23", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 22000, "message": "Progress: 2/3"}
+{"timestamp": "2026-05-03T16:35:24", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 21000, "message": "Wrong knock or timeout \u2014 sequence reset"}

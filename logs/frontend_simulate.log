@@ -1,0 +1,2 @@
+{"timestamp": "2026-05-03T16:14:34", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 8000, "message": "Wrong knock or timeout \u2014 sequence reset"}
+{"timestamp": "2026-05-03T16:14:34", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 9000, "message": "Wrong knock or timeout \u2014 sequence reset"}

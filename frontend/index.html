@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Knocking Dashboard</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --border: #30363d;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --cyan: #58a6ff;
+    --white: #f0f6fc;
+    --font: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
+  header { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  header h1 { margin: 0; font-size: 18px; color: var(--white); }
+  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+  .panel h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .status-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .status-row:last-child { border-bottom: none; }
+  .status-label { color: var(--muted); }
+  .status-value { color: var(--cyan); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; background: var(--border); color: var(--white); font-size: 12px; margin: 2px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: normal; font-size: 12px; text-transform: uppercase; }
+  td { font-size: 13px; }
+  .btn {
+    background: var(--border); color: var(--text); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px;
+  }
+  .btn:hover { background: var(--bg); }
+  .btn-primary { background: var(--cyan); color: #000; border-color: var(--cyan); }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
+  .btn-danger:hover { opacity: 0.9; }
+  .log-panel { min-height: 240px; }
+  .log-list { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
+  .log-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .log-item:last-child { border-bottom: none; }
+  .log-time { color: var(--muted); margin-right: 8px; }
+  .log-event { font-weight: bold; margin-right: 8px; }
+  .log-ip { color: var(--cyan); margin-right: 6px; }
+  .log-msg { color: var(--muted); }
+  .event-AUTH_SUCCESS { color: var(--green); }
+  .event-ACCESS_DENIED, .event-AUTH_FAIL { color: var(--red); }
+  .event-KNOCK_ATTEMPT { color: var(--yellow); }
+  .event-PORT_OPENED, .event-PORT_CLOSED { color: var(--cyan); }
+  .event-ACCESS_GRANTED { color: var(--green); }
+  .simulate { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+  .simulate input, .simulate textarea {
+    background: var(--bg); color: var(--text); border: 1px solid var(--border);
+    padding: 6px 8px; border-radius: 4px; font-family: inherit; width: 100%; margin-bottom: 8px;
+  }
+  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+  .toast {
+    position: fixed; top: 16px; right: 16px; padding: 10px 14px; border-radius: 4px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    font-size: 13px; z-index: 1000; max-width: 320px; word-break: break-word;
+  }
+  .toast.ok { border-color: var(--green); color: var(--green); }
+  .toast.err { border-color: var(--red); color: var(--red); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <span style="font-size:20px;">&#128274;</span>
+    <h1>Port Knocking Dashboard</h1>
+  </header>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>Status</h2>
+      <div class="status-row"><span class="status-label">Sequence</span><span class="status-value" id="seq"></span></div>
+      <div class="status-row"><span class="status-label">Service Port</span><span class="status-value" id="svc"></span></div>
+      <div class="status-row"><span class="status-label">Monitoring</span><span class="status-value" id="ports"></span></div>
+
+      <div class="simulate">
+        <h2>Custom Sequence</h2>
+        <input type="text" id="customSeq" placeholder="e.g. 20000,30000,40000">
+        <button class="btn btn-primary" onclick="updateSequence()">Update Sequence</button>
+      </div>
+
+      <div class="simulate">
+        <h2>Test Port Connection</h2>
+        <input type="number" id="testPort" placeholder="e.g. 2000" onkeydown="if(event.key==='Enter')testPort()">
+        <button class="btn btn-primary" onclick="testPort()">Test</button>
+      </div>
+
+      <div class="simulate">
+        <h2>Simulate Knock</h2>
+        <input type="text" id="simHost" value="127.0.0.1" placeholder="Host">
+        <button class="btn btn-primary" onclick="simulateKnock()">Send Knock Sequence</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Active Sessions</h2>
+      <table>
+        <thead>
+          <tr><th>IP</th><th>Expires</th><th>Remaining</th><th></th></tr>
+        </thead>
+        <tbody id="sessionsBody">
+          <tr><td colspan="4" class="empty">No active sessions</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel log-panel">
+    <h2>Live Access Log</h2>
+    <ul class="log-list" id="logList">
+      <li class="empty">No events yet</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  function showToast(msg, isError) {
+    const el = document.createElement('div');
+    el.className = 'toast ' + (isError ? 'err' : 'ok');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  }
+
+  async function refresh() {
+    try {
+      const [statusRes, sessionsRes, logsRes] = await Promise.all([
+        fetch('/api/status'),
+        fetch('/api/sessions'),
+        fetch('/api/logs?n=50')
+      ]);
+      const status = await statusRes.json();
+      const sessionsData = await sessionsRes.json();
+      const logsData = await logsRes.json();
+      renderStatus(status);
+      renderSessions(sessionsData.sessions);
+      renderLogs(logsData.logs);
+    } catch (e) {
+      console.error('Dashboard refresh failed', e);
+    }
+  }
+
+  function renderStatus(status) {
+    document.getElementById('seq').textContent = (status.sequence || []).join(' → ');
+    document.getElementById('svc').textContent = status.service_port || '-';
+    const ports = (status.knock_ports || []).map(p => `<span class="badge">${p}</span>`).join('');
+    document.getElementById('ports').innerHTML = ports;
+  }
+
+  function renderSessions(sessions) {
+    const tbody = document.getElementById('sessionsBody');
+    if (!sessions || sessions.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">No active sessions</td></tr>';
+      return;
+    }
+    tbody.innerHTML = sessions.map(s => `
+      <tr>
+        <td>${escapeHtml(s.ip)}</td>
+        <td>${escapeHtml(s.expires_at)}</td>
+        <td>${s.remaining_seconds}s</td>
+        <td><button class="btn btn-danger" onclick="revoke('${escapeHtml(s.ip)}')">Revoke</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function renderLogs(logs) {
+    const list = document.getElementById('logList');
+    if (!logs || logs.length === 0) {
+      list.innerHTML = '<li class="empty">No events yet</li>';
+      return;
+    }
+    list.innerHTML = logs.slice().reverse().map(l => {
+      const cls = 'event-' + (l.event || 'OTHER');
+      const port = l.port != null ? ':' + l.port : '';
+      return `<li class="log-item">
+        <span class="log-time">${escapeHtml(l.timestamp || '')}</span>
+        <span class="log-event ${cls}">${escapeHtml(l.event || '')}</span>
+        <span class="log-ip">${escapeHtml(l.ip || '')}${port}</span>
+        <span class="log-msg">${escapeHtml(l.message || '')}</span>
+      </li>`;
+    }).join('');
+  }
+
+  async function revoke(ip) {
+    try {
+      await fetch('/api/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ip })
+      });
+      refresh();
+    } catch (e) {
+      console.error('Revoke failed', e);
+    }
+  }
+
+  async function simulateKnock() {
+    const host = document.getElementById('simHost').value || '127.0.0.1';
+    try {
+      await fetch('/api/knock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host })
+      });
+      refresh();
+    } catch (e) {
+      console.error('Simulate knock failed', e);
+    }
+  }
+
+  async function updateSequence() {
+    const raw = document.getElementById('customSeq').value;
+    const sequence = raw.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    if (sequence.length === 0) {
+      showToast('Please enter at least one valid port number.', true);
+      return;
+    }
+    try {
+      const res = await fetch('/api/config/sequence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sequence })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast('Sequence updated to: ' + sequence.join(' → '), false);
+        refresh();
+      } else {
+        showToast(data.error || 'Update failed', true);
+      }
+    } catch (e) {
+      showToast('Network error: ' + e.message, true);
+    }
+  }
+
+  async function testPort() {
+    const port = parseInt(document.getElementById('testPort').value, 10);
+    if (isNaN(port) || port <= 0) {
+      showToast('Please enter a valid port number.', true);
+      return;
+    }
+    try {
+      const res = await fetch('/api/test-port', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ port, host: '127.0.0.1' })
+      });
+      const data = await res.json();
+      if (data.ok) {
+        showToast(data.message, !data.connected);
+        // The knock itself will appear in the live log on next refresh
+        setTimeout(refresh, 300);
+      } else {
+        showToast(data.error || 'Test failed', true);
+      }
+    } catch (e) {
+      showToast('Network error: ' + e.message, true);
+    }
+  }
+
+  function escapeHtml(text) {
+    if (text == null) return '';
+    return String(text)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  setInterval(refresh, 3000);
+  refresh();
+</script>
+</body>
+</html>
