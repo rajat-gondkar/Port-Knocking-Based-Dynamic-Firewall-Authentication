@@ -177,6 +177,10 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
                     connected = False
                     msg = f"Failed to connect to {target_host}:{port} — {e}"
 
+                # Only log failed tests — successful knock ports are already logged by knock_server.py
+                if not connected:
+                    logger.log("PORT_TEST", target_host, port, msg)
+
                 self._send_json({"ok": True, "connected": connected, "message": msg, "port": port})
                 return
 

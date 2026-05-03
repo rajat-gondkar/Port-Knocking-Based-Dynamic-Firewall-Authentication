@@ -1,0 +1,2 @@
+{"timestamp": "2026-05-03T16:56:08", "event": "PORT_TEST", "ip": "127.0.0.1", "port": 15551, "message": "Failed to connect to 127.0.0.1:15551 \u2014 [Errno 61] Connection refused"}
+{"timestamp": "2026-05-03T16:56:08", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}

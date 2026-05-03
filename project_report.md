@@ -476,6 +476,32 @@ Add two interactive dashboard features:
 
 ---
 
+## Bug Fix: Port Tester Logs Not Appearing in Live Terminal
+
+### Issue
+When using the **Test Port Connection** form in the dashboard, wrong ports (not in the knock sequence) showed a popup toast like:
+```
+Failed to connect to 127.0.0.1:15551 — [Errno 61] Connection refused
+```
+But the event did **not** appear in the **Live Access Log** terminal panel.
+
+### Root Cause
+The `POST /api/test-port` endpoint in `api_server.py` only returned the connection result as JSON to the frontend. It never called `logger.log()`, so no event was recorded for ports that were not part of the knock sequence (and thus not handled by `knock_server.py`).
+
+### Fix
+1. Added `logger.log("PORT_TEST", target_host, port, msg)` to the `/api/test-port` handler in `server/api_server.py`, but **only when the connection fails** (`connected == False`).
+2. Added `.event-PORT_TEST` CSS rule to `frontend/index.html` (yellow color, same as `KNOCK_ATTEMPT`).
+
+> **Why only failures?** Successful connections to knock ports are already logged by `knock_server.py` as `KNOCK_ATTEMPT`, `AUTH_SUCCESS`, etc. Logging `PORT_TEST` on success would create redundant duplicate lines in the terminal.
+
+### Verification
+Ran `tests/test_port_test_log.py`:
+- Tested wrong port `15551` → `PORT_TEST` event appeared in Live Log with failure message.
+- Tested correct knock port `17000` → Only `KNOCK_ATTEMPT` appeared (no redundant `PORT_TEST`).
+- All existing tests re-run with no regressions.
+
+---
+
 ## Final Summary
 
 All 6 phases have been successfully implemented and tested:
