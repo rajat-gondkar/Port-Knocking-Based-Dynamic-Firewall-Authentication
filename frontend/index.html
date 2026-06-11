@@ -6,126 +6,674 @@
 <title>Port Knocking Dashboard</title>
 <style>
   :root {
-    --bg: #0d1117;
-    --panel: #161b22;
-    --border: #30363d;
-    --text: #c9d1d9;
-    --muted: #8b949e;
-    --green: #3fb950;
-    --red: #f85149;
-    --yellow: #d29922;
-    --cyan: #58a6ff;
-    --white: #f0f6fc;
-    --font: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+    --bg: #f4f1eb;
+    --surface: #fffaf2;
+    --surface-soft: #f8f3ea;
+    --text: #22201d;
+    --muted: #766f66;
+    --subtle: #9a9288;
+    --line: #ded6c9;
+    --line-strong: #c9bdae;
+    --accent: #0f766e;
+    --accent-soft: #dcefeb;
+    --danger: #b84a45;
+    --danger-soft: #f5dedb;
+    --warn: #a66b14;
+    --warn-soft: #f5e8c9;
+    --success: #23745b;
+    --success-soft: #dceddf;
+    --shadow: 0 18px 45px rgba(52, 43, 32, 0.08);
+    --font: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
-  .container { max-width: 1200px; margin: 0 auto; padding: 16px; }
-  header { display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-  header h1 { margin: 0; font-size: 18px; color: var(--white); }
-  .grid { display: grid; grid-template-columns: 340px 1fr; gap: 16px; margin-bottom: 16px; }
-  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
-  .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
-  .panel h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
-  .status-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); }
-  .status-row:last-child { border-bottom: none; }
-  .status-label { color: var(--muted); }
-  .status-value { color: var(--cyan); }
-  .badge { display: inline-block; padding: 2px 8px; border-radius: 12px; background: var(--border); color: var(--white); font-size: 12px; margin: 2px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-weight: normal; font-size: 12px; text-transform: uppercase; }
-  td { font-size: 13px; }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 32rem),
+      linear-gradient(180deg, #fbf7ef 0%, var(--bg) 54%);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+  }
+
+  button,
+  input {
+    font: inherit;
+  }
+
+  .shell {
+    width: min(1180px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0 36px;
+  }
+
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 10px 0 26px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-mark {
+    width: 42px;
+    height: 42px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    display: grid;
+    place-items: center;
+    color: var(--accent);
+  }
+
+  .brand-mark svg {
+    width: 21px;
+    height: 21px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 22px;
+    line-height: 1.15;
+    font-weight: 720;
+    letter-spacing: 0;
+  }
+
+  .subtitle {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 34px;
+    padding: 0 13px;
+    border: 1px solid rgba(15, 118, 110, 0.22);
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .pill::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 430px) 1fr;
+    gap: 18px;
+  }
+
+  .stack {
+    display: grid;
+    gap: 18px;
+  }
+
+  .panel {
+    background: rgba(255, 250, 242, 0.88);
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+
+  .layout > .panel {
+    align-self: start;
+  }
+
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 58px;
+    padding: 0 18px;
+    border-bottom: 1px solid var(--line);
+    background: rgba(248, 243, 234, 0.72);
+  }
+
+  .panel-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 760;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .panel-note {
+    color: var(--subtle);
+    font-size: 12px;
+  }
+
+  .panel-body {
+    padding: 18px;
+  }
+
+  .status-grid {
+    display: grid;
+    gap: 12px;
+  }
+
+  .status-row {
+    display: grid;
+    gap: 7px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-soft);
+  }
+
+  .label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 760;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .value {
+    color: var(--text);
+    font-weight: 730;
+  }
+
+  .sequence {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+
+  .sequence-step,
+  .port-chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 9px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .sequence-arrow {
+    color: var(--subtle);
+    font-size: 13px;
+  }
+
+  .ports {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .control {
+    display: grid;
+    gap: 10px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-soft);
+  }
+
+  .control + .control {
+    margin-top: 12px;
+  }
+
+  .field {
+    display: flex;
+    gap: 8px;
+  }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    height: 40px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    padding: 0 12px;
+    outline: none;
+  }
+
+  input::placeholder {
+    color: var(--subtle);
+  }
+
+  input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+  }
+
   .btn {
-    background: var(--border); color: var(--text); border: 1px solid var(--border);
-    padding: 4px 10px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px;
+    height: 40px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    cursor: pointer;
+    white-space: nowrap;
+    font-size: 13px;
+    font-weight: 750;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
   }
-  .btn:hover { background: var(--bg); }
-  .btn-primary { background: var(--cyan); color: #000; border-color: var(--cyan); }
-  .btn-primary:hover { opacity: 0.9; }
-  .btn-danger { background: var(--red); color: #fff; border-color: var(--red); }
-  .btn-danger:hover { opacity: 0.9; }
-  .log-panel { min-height: 240px; }
-  .log-list { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
-  .log-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
-  .log-item:last-child { border-bottom: none; }
-  .log-time { color: var(--muted); margin-right: 8px; }
-  .log-event { font-weight: bold; margin-right: 8px; }
-  .log-ip { color: var(--cyan); margin-right: 6px; }
-  .log-msg { color: var(--muted); }
-  .event-AUTH_SUCCESS { color: var(--green); }
-  .event-ACCESS_DENIED, .event-AUTH_FAIL { color: var(--red); }
-  .event-KNOCK_ATTEMPT, .event-PORT_TEST { color: var(--yellow); }
-  .event-PORT_OPENED, .event-PORT_CLOSED { color: var(--cyan); }
-  .event-ACCESS_GRANTED { color: var(--green); }
-  .simulate { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
-  .simulate input, .simulate textarea {
-    background: var(--bg); color: var(--text); border: 1px solid var(--border);
-    padding: 6px 8px; border-radius: 4px; font-family: inherit; width: 100%; margin-bottom: 8px;
+
+  .btn:hover {
+    transform: translateY(-1px);
   }
-  .empty { color: var(--muted); font-style: italic; padding: 8px 0; }
+
+  .btn:active {
+    transform: translateY(0);
+  }
+
+  .btn svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 9px 20px rgba(15, 118, 110, 0.18);
+  }
+
+  .btn-secondary {
+    background: var(--surface);
+    border-color: var(--line-strong);
+    color: var(--text);
+  }
+
+  .btn-danger {
+    height: 32px;
+    padding: 0 10px;
+    background: var(--danger-soft);
+    border-color: rgba(184, 74, 69, 0.2);
+    color: var(--danger);
+    font-size: 12px;
+  }
+
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th,
+  td {
+    padding: 13px 10px;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+
+  th {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 760;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  td {
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  tr:last-child td {
+    border-bottom: 0;
+  }
+
+  th:last-child,
+  td:last-child {
+    text-align: right;
+  }
+
+  .ip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-weight: 700;
+  }
+
+  .ip::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--success);
+  }
+
+  .time {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .remaining {
+    font-family: var(--mono);
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .remaining.warning {
+    color: var(--warn);
+  }
+
+  .remaining.critical {
+    color: var(--danger);
+  }
+
+  .log-panel {
+    grid-column: 1 / -1;
+  }
+
+  .logs {
+    display: grid;
+    gap: 8px;
+    max-height: 390px;
+    overflow: auto;
+    padding-right: 4px;
+  }
+
+  .log-entry {
+    display: grid;
+    grid-template-columns: 150px 128px minmax(120px, 180px) 1fr;
+    gap: 10px;
+    align-items: center;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface-soft);
+  }
+
+  .log-time,
+  .log-ip {
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .log-message {
+    color: var(--text);
+    line-height: 1.35;
+  }
+
+  .tag {
+    justify-self: start;
+    min-height: 26px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 9px;
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .tag.success {
+    background: var(--success-soft);
+    color: var(--success);
+  }
+
+  .tag.denied {
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  .tag.knock {
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+
+  .tag.port {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+
+  .empty {
+    min-height: 140px;
+    display: grid;
+    place-items: center;
+    border: 1px dashed var(--line-strong);
+    border-radius: 12px;
+    color: var(--muted);
+    background: var(--surface-soft);
+    text-align: center;
+  }
+
   .toast {
-    position: fixed; top: 16px; right: 16px; padding: 10px 14px; border-radius: 4px;
-    background: var(--panel); border: 1px solid var(--border); color: var(--text);
-    font-size: 13px; z-index: 1000; max-width: 320px; word-break: break-word;
+    position: fixed;
+    top: 22px;
+    right: 22px;
+    z-index: 10;
+    width: min(380px, calc(100% - 44px));
+    padding: 13px 15px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    color: var(--text);
+    font-size: 13px;
+    animation: toastIn 0.22s ease;
   }
-  .toast.ok { border-color: var(--green); color: var(--green); }
-  .toast.err { border-color: var(--red); color: var(--red); }
+
+  .toast.ok {
+    border-color: rgba(35, 116, 91, 0.25);
+    background: #f2fbf4;
+  }
+
+  .toast.err {
+    border-color: rgba(184, 74, 69, 0.25);
+    background: #fff4f2;
+  }
+
+  @keyframes toastIn {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 900px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+
+    .topbar {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .shell {
+      width: min(100% - 22px, 1180px);
+      padding-top: 18px;
+    }
+
+    .field {
+      flex-direction: column;
+    }
+
+    .btn {
+      width: 100%;
+    }
+
+    .panel-head {
+      align-items: flex-start;
+      flex-direction: column;
+      justify-content: center;
+      padding: 14px;
+    }
+
+    .panel-body {
+      padding: 14px;
+    }
+
+    .log-entry {
+      grid-template-columns: 1fr;
+      gap: 7px;
+    }
+  }
 </style>
 </head>
 <body>
-<div class="container">
-  <header>
-    <span style="font-size:20px;">&#128274;</span>
-    <h1>Port Knocking Dashboard</h1>
-  </header>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M6 10h12a1.5 1.5 0 0 1 1.5 1.5v7A1.5 1.5 0 0 1 18 20H6a1.5 1.5 0 0 1-1.5-1.5v-7A1.5 1.5 0 0 1 6 10Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M12 14v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Port Knocking Dashboard</h1>
+          <p class="subtitle">Dynamic firewall authentication</p>
+        </div>
+      </div>
+      <div class="pill">System Active</div>
+    </header>
 
-  <div class="grid">
-    <div class="panel">
-      <h2>Status</h2>
-      <div class="status-row"><span class="status-label">Sequence</span><span class="status-value" id="seq"></span></div>
-      <div class="status-row"><span class="status-label">Service Port</span><span class="status-value" id="svc"></span></div>
-      <div class="status-row"><span class="status-label">Monitoring</span><span class="status-value" id="ports"></span></div>
+    <section class="layout">
+      <div class="stack">
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">System Status</h2>
+            <span class="panel-note">Live configuration</span>
+          </div>
+          <div class="panel-body">
+            <div class="status-grid">
+              <div class="status-row">
+                <span class="label">Knock Sequence</span>
+                <div class="sequence value" id="seq"></div>
+              </div>
+              <div class="status-row">
+                <span class="label">Protected Service Port</span>
+                <div class="value" id="svc"></div>
+              </div>
+              <div class="status-row">
+                <span class="label">Monitored Ports</span>
+                <div class="ports" id="ports"></div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <div class="simulate">
-        <h2>Custom Sequence</h2>
-        <input type="text" id="customSeq" placeholder="e.g. 20000,30000,40000">
-        <button class="btn btn-primary" onclick="updateSequence()">Update Sequence</button>
+        <section class="panel">
+          <div class="panel-head">
+            <h2 class="panel-title">Controls</h2>
+            <span class="panel-note">Manage access</span>
+          </div>
+          <div class="panel-body">
+            <div class="control">
+              <label class="label" for="customSeq">Update Sequence</label>
+              <div class="field">
+                <input type="text" id="customSeq" placeholder="20000,30000,40000">
+                <button class="btn btn-primary" onclick="updateSequence()">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Update
+                </button>
+              </div>
+            </div>
+
+            <div class="control">
+              <label class="label" for="testPort">Test Port Connection</label>
+              <div class="field">
+                <input type="number" id="testPort" placeholder="Port number" onkeydown="if(event.key==='Enter')testPort()">
+                <button class="btn btn-secondary" onclick="testPort()">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                  Test
+                </button>
+              </div>
+            </div>
+
+            <div class="control">
+              <label class="label" for="simHost">Simulate Knock Sequence</label>
+              <div class="field">
+                <input type="text" id="simHost" value="127.0.0.1" placeholder="Target host">
+                <button class="btn btn-primary" onclick="simulateKnock()">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h12M13 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div class="simulate">
-        <h2>Test Port Connection</h2>
-        <input type="number" id="testPort" placeholder="e.g. 2000" onkeydown="if(event.key==='Enter')testPort()">
-        <button class="btn btn-primary" onclick="testPort()">Test</button>
-      </div>
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Active Sessions</h2>
+          <span class="panel-note">Authenticated clients</span>
+        </div>
+        <div class="panel-body table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>Expires At</th>
+                <th>Remaining</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="sessionsBody"></tbody>
+          </table>
+        </div>
+      </section>
 
-      <div class="simulate">
-        <h2>Simulate Knock</h2>
-        <input type="text" id="simHost" value="127.0.0.1" placeholder="Host">
-        <button class="btn btn-primary" onclick="simulateKnock()">Send Knock Sequence</button>
-      </div>
-    </div>
-
-    <div class="panel">
-      <h2>Active Sessions</h2>
-      <table>
-        <thead>
-          <tr><th>IP</th><th>Expires</th><th>Remaining</th><th></th></tr>
-        </thead>
-        <tbody id="sessionsBody">
-          <tr><td colspan="4" class="empty">No active sessions</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <div class="panel log-panel">
-    <h2>Live Access Log</h2>
-    <ul class="log-list" id="logList">
-      <li class="empty">No events yet</li>
-    </ul>
-  </div>
-</div>
+      <section class="panel log-panel">
+        <div class="panel-head">
+          <h2 class="panel-title">Live Access Log</h2>
+          <span class="panel-note">Latest events first</span>
+        </div>
+        <div class="panel-body">
+          <div class="logs" id="logContainer"></div>
+        </div>
+      </section>
+    </section>
+  </main>
 
 <script>
   function showToast(msg, isError) {
@@ -133,7 +681,12 @@
     el.className = 'toast ' + (isError ? 'err' : 'ok');
     el.textContent = msg;
     document.body.appendChild(el);
-    setTimeout(() => el.remove(), 4000);
+    setTimeout(() => {
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-8px)';
+      el.style.transition = 'all 0.2s ease';
+      setTimeout(() => el.remove(), 220);
+    }, 3500);
   }
 
   async function refresh() {
@@ -155,43 +708,75 @@
   }
 
   function renderStatus(status) {
-    document.getElementById('seq').textContent = (status.sequence || []).join(' → ');
+    const seqEl = document.getElementById('seq');
+    const sequence = status.sequence || [];
+    if (sequence.length > 0) {
+      seqEl.innerHTML = sequence.map((port, i) =>
+        `<span class="sequence-step">${escapeHtml(port)}</span>${i < sequence.length - 1 ? '<span class="sequence-arrow">/</span>' : ''}`
+      ).join('');
+    } else {
+      seqEl.textContent = 'Not configured';
+    }
+
     document.getElementById('svc').textContent = status.service_port || '-';
-    const ports = (status.knock_ports || []).map(p => `<span class="badge">${p}</span>`).join('');
-    document.getElementById('ports').innerHTML = ports;
+
+    const portsEl = document.getElementById('ports');
+    const ports = status.knock_ports || [];
+    portsEl.innerHTML = ports.length
+      ? ports.map(p => `<span class="port-chip">${escapeHtml(p)}</span>`).join('')
+      : '<span class="panel-note">No monitored ports</span>';
   }
 
   function renderSessions(sessions) {
     const tbody = document.getElementById('sessionsBody');
+
     if (!sessions || sessions.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty">No active sessions</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty">No active sessions</div></td></tr>';
       return;
     }
-    tbody.innerHTML = sessions.map(s => `
-      <tr>
-        <td>${escapeHtml(s.ip)}</td>
-        <td>${escapeHtml(s.expires_at)}</td>
-        <td>${s.remaining_seconds}s</td>
-        <td><button class="btn btn-danger" onclick="revoke('${escapeHtml(s.ip)}')">Revoke</button></td>
-      </tr>
-    `).join('');
+
+    tbody.innerHTML = sessions.map(s => {
+      const remaining = s.remaining_seconds || 0;
+      let remainingClass = '';
+      if (remaining <= 5) remainingClass = 'critical';
+      else if (remaining <= 10) remainingClass = 'warning';
+      const ip = escapeHtml(s.ip);
+
+      return `<tr>
+          <td><span class="ip">${ip}</span></td>
+          <td class="time">${escapeHtml(s.expires_at)}</td>
+          <td class="remaining ${remainingClass}">${remaining}s</td>
+          <td><button class="btn btn-danger" onclick="revoke('${ip}')">Revoke</button></td>
+        </tr>`;
+    }).join('');
   }
 
   function renderLogs(logs) {
-    const list = document.getElementById('logList');
+    const container = document.getElementById('logContainer');
+
     if (!logs || logs.length === 0) {
-      list.innerHTML = '<li class="empty">No events yet</li>';
+      container.innerHTML = '<div class="empty">Waiting for events...</div>';
       return;
     }
-    list.innerHTML = logs.slice().reverse().map(l => {
-      const cls = 'event-' + (l.event || 'OTHER');
+
+    const reversed = logs.slice().reverse();
+
+    container.innerHTML = reversed.map(l => {
+      const event = l.event || 'OTHER';
+      let tagClass = '';
+      if (['AUTH_SUCCESS', 'ACCESS_GRANTED'].includes(event)) tagClass = 'success';
+      else if (['ACCESS_DENIED', 'AUTH_FAIL'].includes(event)) tagClass = 'denied';
+      else if (['KNOCK_ATTEMPT', 'PORT_TEST'].includes(event)) tagClass = 'knock';
+      else if (['PORT_OPENED', 'PORT_CLOSED'].includes(event)) tagClass = 'port';
+
       const port = l.port != null ? ':' + l.port : '';
-      return `<li class="log-item">
-        <span class="log-time">${escapeHtml(l.timestamp || '')}</span>
-        <span class="log-event ${cls}">${escapeHtml(l.event || '')}</span>
-        <span class="log-ip">${escapeHtml(l.ip || '')}${port}</span>
-        <span class="log-msg">${escapeHtml(l.message || '')}</span>
-      </li>`;
+
+      return `<div class="log-entry">
+          <span class="log-time">${escapeHtml(l.timestamp || '')}</span>
+          <span class="tag ${tagClass}">${escapeHtml(event)}</span>
+          <span class="log-ip">${escapeHtml(l.ip || '')}${escapeHtml(port)}</span>
+          <span class="log-message">${escapeHtml(l.message || '')}</span>
+        </div>`;
     }).join('');
   }
 
@@ -202,9 +787,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip })
       });
+      showToast(`Session revoked for ${ip}`, false);
       refresh();
     } catch (e) {
       console.error('Revoke failed', e);
+      showToast('Failed to revoke session', true);
     }
   }
 
@@ -216,9 +803,11 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ host })
       });
+      showToast(`Knock sequence sent to ${host}`, false);
       refresh();
     } catch (e) {
       console.error('Simulate knock failed', e);
+      showToast('Failed to send knock sequence', true);
     }
   }
 
@@ -237,7 +826,7 @@
       });
       const data = await res.json();
       if (data.ok) {
-        showToast('Sequence updated to: ' + sequence.join(' → '), false);
+        showToast('Sequence updated: ' + sequence.join(' / '), false);
         refresh();
       } else {
         showToast(data.error || 'Update failed', true);
@@ -262,7 +851,6 @@
       const data = await res.json();
       if (data.ok) {
         showToast(data.message, !data.connected);
-        // The knock itself will appear in the live log on next refresh
         setTimeout(refresh, 300);
       } else {
         showToast(data.error || 'Test failed', true);
@@ -278,7 +866,8 @@
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   setInterval(refresh, 3000);

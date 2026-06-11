@@ -74,3 +74,53 @@
 {"timestamp": "2026-05-03T16:57:59", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 18000, "message": "Wrong knock or timeout \u2014 sequence reset"}
 {"timestamp": "2026-05-03T16:58:06", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}
 {"timestamp": "2026-05-03T16:58:12", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 19000, "message": "Wrong knock or timeout \u2014 sequence reset"}
+{"timestamp": "2026-06-11T18:44:25", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T18:44:25", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 18000, "message": "Progress: 2/3"}
+{"timestamp": "2026-06-11T18:44:26", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 19000, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-06-11T18:44:26", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}
+{"timestamp": "2026-06-11T18:44:32", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Access revoked"}
+{"timestamp": "2026-06-11T18:44:32", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Revoked via API"}
+{"timestamp": "2026-06-11T23:23:40", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T23:23:49", "event": "PORT_TEST", "ip": "127.0.0.1", "port": 187000, "message": "Failed to connect to 127.0.0.1:187000 \u2014 connect(): port must be 0-65535."}
+{"timestamp": "2026-06-11T23:23:55", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 18000, "message": "Wrong knock or timeout \u2014 sequence reset"}
+{"timestamp": "2026-06-11T23:24:06", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 19000, "message": "Wrong knock or timeout \u2014 sequence reset"}
+{"timestamp": "2026-06-11T23:24:26", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T23:24:36", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 18000, "message": "Progress: 2/3"}
+{"timestamp": "2026-06-11T23:24:43", "event": "CONFIG_UPDATE", "ip": "127.0.0.1", "port": null, "message": "Sequence changed to [19000]"}
+{"timestamp": "2026-06-11T23:24:56", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 19000, "message": "Progress: 1/1"}
+{"timestamp": "2026-06-11T23:25:27", "event": "CONFIG_UPDATE", "ip": "127.0.0.1", "port": null, "message": "Sequence changed to [19000, 12122, 13131]"}
+{"timestamp": "2026-06-11T23:25:32", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 19000, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T23:25:36", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 12122, "message": "Progress: 2/3"}
+{"timestamp": "2026-06-11T23:25:40", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 13131, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-06-11T23:25:40", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}
+{"timestamp": "2026-06-11T23:26:12", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Expired"}
+{"timestamp": "2026-06-11T23:28:03", "event": "CONFIG_UPDATE", "ip": "127.0.0.1", "port": null, "message": "Sequence changed to [12111]"}
+{"timestamp": "2026-06-11T23:28:12", "event": "CONFIG_UPDATE", "ip": "127.0.0.1", "port": null, "message": "Sequence changed to [12121, 13300, 15500]"}
+{"timestamp": "2026-06-11T23:28:33", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 12121, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T23:28:40", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 12121, "message": "Wrong knock or timeout \u2014 sequence reset"}
+{"timestamp": "2026-06-11T23:28:48", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 12121, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T23:28:53", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 13300, "message": "Progress: 2/3"}
+{"timestamp": "2026-06-11T23:28:58", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 15500, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-06-11T23:28:58", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}
+{"timestamp": "2026-06-11T23:29:18", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Access revoked"}
+{"timestamp": "2026-06-11T23:29:18", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Revoked via API"}
+{"timestamp": "2026-06-11T23:29:43", "event": "CONFIG_UPDATE", "ip": "127.0.0.1", "port": null, "message": "Sequence changed to [11111, 22222, 11111]"}
+{"timestamp": "2026-06-11T23:29:47", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 11111, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T23:29:51", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 22222, "message": "Progress: 2/3"}
+{"timestamp": "2026-06-11T23:29:53", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 11111, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-06-11T23:29:53", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}
+{"timestamp": "2026-06-11T23:29:59", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 11111, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-11T23:30:06", "event": "PORT_TEST", "ip": "127.0.0.1", "port": 31313, "message": "Failed to connect to 127.0.0.1:31313 \u2014 [Errno 61] Connection refused"}
+{"timestamp": "2026-06-11T23:30:15", "event": "AUTH_FAIL", "ip": "127.0.0.1", "port": 22222, "message": "Wrong knock or timeout \u2014 sequence reset"}
+{"timestamp": "2026-06-11T23:30:24", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Expired"}
+{"timestamp": "2026-06-12T02:43:07", "event": "PORT_TEST", "ip": "127.0.0.1", "port": 13333, "message": "Failed to connect to 127.0.0.1:13333 \u2014 [Errno 61] Connection refused"}
+{"timestamp": "2026-06-12T02:43:15", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 17000, "message": "Progress: 1/3"}
+{"timestamp": "2026-06-12T02:43:23", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 18000, "message": "Progress: 2/3"}
+{"timestamp": "2026-06-12T02:43:29", "event": "AUTH_SUCCESS", "ip": "127.0.0.1", "port": 19000, "message": "Sequence complete. Opening port."}
+{"timestamp": "2026-06-12T02:43:29", "event": "PORT_OPENED", "ip": "127.0.0.1", "port": 12222, "message": "Access granted for 30s"}
+{"timestamp": "2026-06-12T02:43:41", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Access revoked"}
+{"timestamp": "2026-06-12T02:43:41", "event": "PORT_CLOSED", "ip": "127.0.0.1", "port": 12222, "message": "Revoked via API"}
+{"timestamp": "2026-06-12T02:43:50", "event": "CONFIG_UPDATE", "ip": "127.0.0.1", "port": null, "message": "Sequence changed to [22222]"}
+{"timestamp": "2026-06-12T02:43:54", "event": "KNOCK_ATTEMPT", "ip": "127.0.0.1", "port": 22222, "message": "Progress: 1/1"}
+{"timestamp": "2026-06-12T02:44:00", "event": "PORT_TEST", "ip": "127.0.0.1", "port": 2222, "message": "Failed to connect to 127.0.0.1:2222 \u2014 [Errno 61] Connection refused"}
+{"timestamp": "2026-06-12T02:44:05", "event": "PORT_TEST", "ip": "127.0.0.1", "port": 12213, "message": "Failed to connect to 127.0.0.1:12213 \u2014 [Errno 61] Connection refused"}
