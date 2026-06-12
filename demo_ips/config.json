@@ -1,0 +1,10 @@
+{
+  "knock_sequence": [27000, 28000, 29000],
+  "service_port": 22223,
+  "knock_ports": [27000, 28000, 29000, 27500, 28500],
+  "sequence_timeout": 10,
+  "access_duration": 30,
+  "host": "0.0.0.0",
+  "api_port": 8081,
+  "log_file": "logs/access.log"
+}

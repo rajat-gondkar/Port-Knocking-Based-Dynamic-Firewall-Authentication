@@ -55,16 +55,7 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
             path = self.path
 
             if path == "/":
-                self._serve_frontend("index.html")
-                return
-            if path == "/ips":
-                self._serve_frontend("ips.html")
-                return
-            if path == "/totp":
-                self._serve_frontend("totp.html")
-                return
-            if path == "/geoip":
-                self._serve_frontend("geoip.html")
+                self._serve_frontend()
                 return
 
             if path == "/api/status":
@@ -195,12 +186,12 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
 
             self._send_json({"error": "Not found"}, 404)
 
-        def _serve_frontend(self, filename="index.html"):
-            # Serve frontend/filename
+        def _serve_frontend(self):
+            # Serve frontend/index.html
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            frontend_path = os.path.join(script_dir, "..", "frontend", filename)
+            frontend_path = os.path.join(script_dir, "..", "frontend", "index.html")
             if not os.path.exists(frontend_path):
-                frontend_path = os.path.join(os.getcwd(), "frontend", filename)
+                frontend_path = os.path.join(os.getcwd(), "frontend", "index.html")
 
             if os.path.exists(frontend_path):
                 with open(frontend_path, "r") as f:

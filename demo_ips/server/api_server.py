@@ -55,16 +55,7 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
             path = self.path
 
             if path == "/":
-                self._serve_frontend("index.html")
-                return
-            if path == "/ips":
-                self._serve_frontend("ips.html")
-                return
-            if path == "/totp":
-                self._serve_frontend("totp.html")
-                return
-            if path == "/geoip":
-                self._serve_frontend("geoip.html")
+                self._serve_frontend()
                 return
 
             if path == "/api/status":
@@ -78,6 +69,21 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
             if path == "/api/sessions":
                 sessions = firewall.get_active_sessions()
                 self._send_json({"sessions": sessions})
+                return
+
+            if path == "/api/bans":
+                bans = tracker.get_bans()
+                self._send_json({"bans": bans})
+                return
+
+            if path == "/api/strikes":
+                with tracker.lock:
+                    strikes_data = [
+                        {"ip": ip, "strikes": count, "max": tracker.max_strikes}
+                        for ip, count in tracker.strikes.items()
+                        if ip not in tracker.banned_ips
+                    ]
+                self._send_json({"strikes": strikes_data})
                 return
 
             if path.startswith("/api/logs"):
@@ -114,6 +120,19 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
                     return
                 firewall.close_port(ip)
                 logger.log("PORT_CLOSED", ip, config.get("service_port"), "Revoked via API")
+                self._send_json({"ok": True})
+                return
+
+            if path == "/api/unban":
+                ip = payload.get("ip")
+                if not ip:
+                    self._send_json({"error": "Missing 'ip' field"}, 400)
+                    return
+                with tracker.lock:
+                    tracker.banned_ips.pop(ip, None)
+                    tracker.strikes.pop(ip, None)
+                    tracker.sessions.pop(ip, None)
+                logger.log("BAN_LIFTED", ip, None, "Manually unbanned via dashboard")
                 self._send_json({"ok": True})
                 return
 
@@ -157,7 +176,13 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
 
                 # Update config and tracker
                 config["knock_sequence"] = new_sequence
-                config["knock_ports"] = new_sequence
+                
+                # Preserve existing knock ports as honeypots/decoys
+                decoys = [p for p in current_ports if p not in new_sequence]
+                if not decoys:
+                    decoys = [17500, 18500, 19500]
+                config["knock_ports"] = new_sequence + decoys
+                
                 tracker.expected_sequence = new_sequence
 
                 # Restart listeners
@@ -195,12 +220,12 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
 
             self._send_json({"error": "Not found"}, 404)
 
-        def _serve_frontend(self, filename="index.html"):
-            # Serve frontend/filename
+        def _serve_frontend(self):
+            # Serve frontend/index.html
             script_dir = os.path.dirname(os.path.abspath(__file__))
-            frontend_path = os.path.join(script_dir, "..", "frontend", filename)
+            frontend_path = os.path.join(script_dir, "..", "frontend", "index.html")
             if not os.path.exists(frontend_path):
-                frontend_path = os.path.join(os.getcwd(), "frontend", filename)
+                frontend_path = os.path.join(os.getcwd(), "frontend", "index.html")
 
             if os.path.exists(frontend_path):
                 with open(frontend_path, "r") as f:

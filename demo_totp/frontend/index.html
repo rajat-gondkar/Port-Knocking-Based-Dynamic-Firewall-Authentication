@@ -569,17 +569,17 @@
           </svg>
         </div>
         <div>
-          <h1>Port Knocking Dashboard</h1>
-          <p class="subtitle">Dynamic firewall authentication</p>
+          <h1>Port Knocking <span style='color: var(--accent);'>+ TOTP</span></h1>
+          <p class="subtitle">Time-Based One-Time Sequences</p>
         </div>
       </div>
       <div class="pill">System Active</div>
     </header>
 
     <nav style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;">
-      <a href="/" class="btn btn-primary" style="text-decoration: none;">Original Mode</a>
+      <a href="/" class="btn btn-secondary" style="text-decoration: none;">Original Mode</a>
       <a href="/ips" class="btn btn-secondary" style="text-decoration: none;">IPS Mode</a>
-      <a href="/totp" class="btn btn-secondary" style="text-decoration: none;">TOTP Mode</a>
+      <a href="/totp" class="btn btn-primary" style="text-decoration: none;">TOTP Mode</a>
       <a href="/geoip" class="btn btn-secondary" style="text-decoration: none;">GeoIP Mode</a>
     </nav>
 
@@ -647,8 +647,10 @@
               </div>
             </div>
           </div>
+        
         </section>
       </div>
+
 
       <section class="panel">
         <div class="panel-head">
@@ -683,6 +685,14 @@
   </main>
 
 <script>
+
+  async function fetchAPI(endpoint, options = {}) {
+    const url = 'http://localhost:8082' + endpoint;
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
   function showToast(msg, isError) {
     const el = document.createElement('div');
     el.className = 'toast ' + (isError ? 'err' : 'ok');
@@ -696,19 +706,26 @@
     }, 3500);
   }
 
+  
   async function refresh() {
     try {
-      const [statusRes, sessionsRes, logsRes] = await Promise.all([
-        fetch('/api/status'),
-        fetch('/api/sessions'),
-        fetch('/api/logs?n=50')
-      ]);
-      const status = await statusRes.json();
-      const sessionsData = await sessionsRes.json();
-      const logsData = await logsRes.json();
-      renderStatus(status);
-      renderSessions(sessionsData.sessions);
-      renderLogs(logsData.logs);
+      const p = [
+        fetchAPI('/api/status'),
+        fetchAPI('/api/sessions'),
+        fetchAPI('/api/logs?n=50')
+      ];
+      if ('totp' === 'ips') {
+        p.push(fetchAPI('/api/bans'));
+        p.push(fetchAPI('/api/strikes'));
+      }
+      const results = await Promise.all(p);
+      renderStatus(results[0]);
+      renderSessions(results[1].sessions);
+      renderLogs(results[2].logs);
+      if ('totp' === 'ips') {
+        renderBans(results[3].bans);
+        renderStrikes(results[4].strikes);
+      }
     } catch (e) {
       console.error('Dashboard refresh failed', e);
     }
@@ -789,7 +806,7 @@
 
   async function revoke(ip) {
     try {
-      await fetch('/api/revoke', {
+      await fetchAPI('/api/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip })
@@ -802,13 +819,19 @@
     }
   }
 
+  
   async function simulateKnock() {
     const host = document.getElementById('simHost').value || '127.0.0.1';
+    let sequence;
     try {
-      await fetch('/api/knock', {
+        const st = await fetchAPI('/api/status');
+        sequence = st.sequence;
+    } catch(e) {}
+    try {
+      await fetchAPI('/api/knock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host })
+        body: JSON.stringify({ host, sequence })
       });
       showToast(`Knock sequence sent to ${host}`, false);
       refresh();
@@ -826,12 +849,11 @@
       return;
     }
     try {
-      const res = await fetch('/api/config/sequence', {
+      const data = await fetchAPI('/api/config/sequence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sequence })
       });
-      const data = await res.json();
       if (data.ok) {
         showToast('Sequence updated: ' + sequence.join(' / '), false);
         refresh();
@@ -850,12 +872,11 @@
       return;
     }
     try {
-      const res = await fetch('/api/test-port', {
+      const data = await fetchAPI('/api/test-port', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ port, host: '127.0.0.1' })
       });
-      const data = await res.json();
       if (data.ok) {
         showToast(data.message, !data.connected);
         setTimeout(refresh, 300);
@@ -879,6 +900,47 @@
 
   setInterval(refresh, 3000);
   refresh();
+
+  // TOTP specific status rendering override
+  const originalRenderStatus = renderStatus;
+  renderStatus = function(status) {
+    originalRenderStatus(status);
+    
+    // Add TOTP specific UI
+    let seqRow = document.querySelector('.status-row:first-child');
+    if (status.totp && !document.getElementById('totpTimeContainer')) {
+        let div = document.createElement('div');
+        div.id = 'totpTimeContainer';
+        div.style.marginTop = '8px';
+        div.style.fontSize = '12px';
+        div.style.color = 'var(--muted)';
+        div.style.display = 'flex';
+        div.style.alignItems = 'center';
+        div.style.justifyContent = 'space-between';
+        
+        div.innerHTML = `
+          <span>Refreshes in <strong id="totpTime" style="color:var(--text);">--</strong>s</span>
+          <div style="flex-grow: 1; height: 6px; background: var(--line-strong); border-radius: 3px; margin-left: 10px; overflow: hidden;">
+            <div id="totpBar" style="height: 100%; width: 100%; background: var(--accent); transition: width 1s linear;"></div>
+          </div>
+        `;
+        seqRow.appendChild(div);
+    }
+    
+    if (status.totp && document.getElementById('totpTimeContainer')) {
+        const remaining = status.totp.remaining_seconds;
+        document.getElementById('totpTime').textContent = remaining;
+        document.getElementById('totpBar').style.width = ((remaining / 30) * 100) + '%';
+        if (remaining <= 5) {
+            document.getElementById('totpBar').style.background = 'var(--danger)';
+        } else if (remaining <= 10) {
+            document.getElementById('totpBar').style.background = 'var(--warn)';
+        } else {
+            document.getElementById('totpBar').style.background = 'var(--accent)';
+        }
+    }
+  };
+
 </script>
 </body>
 </html>
