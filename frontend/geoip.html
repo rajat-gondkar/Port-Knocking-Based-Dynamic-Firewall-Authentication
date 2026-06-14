@@ -569,18 +569,18 @@
           </svg>
         </div>
         <div>
-          <h1>Port Knocking Dashboard</h1>
-          <p class="subtitle">Dynamic firewall authentication</p>
+          <h1>Port Knocking <span style='color: var(--success);'>+ GeoIP</span></h1>
+          <p class="subtitle">Location-based Filtering</p>
         </div>
       </div>
       <div class="pill">System Active</div>
     </header>
 
     <nav style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;">
-      <a href="/" class="btn btn-primary" style="text-decoration: none;">Original Mode</a>
+      <a href="/" class="btn btn-secondary" style="text-decoration: none;">Original Mode</a>
       <a href="/ips" class="btn btn-secondary" style="text-decoration: none;">IPS Mode</a>
       <a href="/totp" class="btn btn-secondary" style="text-decoration: none;">TOTP Mode</a>
-      <a href="/geoip" class="btn btn-secondary" style="text-decoration: none;">GeoIP Mode</a>
+      <a href="/geoip" class="btn btn-primary" style="text-decoration: none;">GeoIP Mode</a>
     </nav>
 
     <section class="layout">
@@ -647,8 +647,10 @@
               </div>
             </div>
           </div>
+        
         </section>
       </div>
+
 
       <section class="panel">
         <div class="panel-head">
@@ -683,6 +685,14 @@
   </main>
 
 <script>
+
+  async function fetchAPI(endpoint, options = {}) {
+    const url = 'http://localhost:8083' + endpoint;
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
   function showToast(msg, isError) {
     const el = document.createElement('div');
     el.className = 'toast ' + (isError ? 'err' : 'ok');
@@ -696,19 +706,26 @@
     }, 3500);
   }
 
+  
   async function refresh() {
     try {
-      const [statusRes, sessionsRes, logsRes] = await Promise.all([
-        fetch('/api/status'),
-        fetch('/api/sessions'),
-        fetch('/api/logs?n=50')
-      ]);
-      const status = await statusRes.json();
-      const sessionsData = await sessionsRes.json();
-      const logsData = await logsRes.json();
-      renderStatus(status);
-      renderSessions(sessionsData.sessions);
-      renderLogs(logsData.logs);
+      const p = [
+        fetchAPI('/api/status'),
+        fetchAPI('/api/sessions'),
+        fetchAPI('/api/logs?n=50')
+      ];
+      if ('geoip' === 'ips') {
+        p.push(fetchAPI('/api/bans'));
+        p.push(fetchAPI('/api/strikes'));
+      }
+      const results = await Promise.all(p);
+      renderStatus(results[0]);
+      renderSessions(results[1].sessions);
+      renderLogs(results[2].logs);
+      if ('geoip' === 'ips') {
+        renderBans(results[3].bans);
+        renderStrikes(results[4].strikes);
+      }
     } catch (e) {
       console.error('Dashboard refresh failed', e);
     }
@@ -789,7 +806,7 @@
 
   async function revoke(ip) {
     try {
-      await fetch('/api/revoke', {
+      await fetchAPI('/api/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip })
@@ -802,13 +819,19 @@
     }
   }
 
+  
   async function simulateKnock() {
     const host = document.getElementById('simHost').value || '127.0.0.1';
+    let sequence;
     try {
-      await fetch('/api/knock', {
+        const st = await fetchAPI('/api/status');
+        sequence = st.sequence;
+    } catch(e) {}
+    try {
+      await fetchAPI('/api/knock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host })
+        body: JSON.stringify({ host, sequence })
       });
       showToast(`Knock sequence sent to ${host}`, false);
       refresh();
@@ -826,12 +849,11 @@
       return;
     }
     try {
-      const res = await fetch('/api/config/sequence', {
+      const data = await fetchAPI('/api/config/sequence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sequence })
       });
-      const data = await res.json();
       if (data.ok) {
         showToast('Sequence updated: ' + sequence.join(' / '), false);
         refresh();
@@ -850,12 +872,11 @@
       return;
     }
     try {
-      const res = await fetch('/api/test-port', {
+      const data = await fetchAPI('/api/test-port', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ port, host: '127.0.0.1' })
       });
-      const data = await res.json();
       if (data.ok) {
         showToast(data.message, !data.connected);
         setTimeout(refresh, 300);
@@ -879,6 +900,43 @@
 
   setInterval(refresh, 3000);
   refresh();
+
+  // GeoIP specific log rendering override
+  const originalRenderLogs = renderLogs;
+  renderLogs = function(logs) {
+      originalRenderLogs(logs);
+      
+      // Inject location info into log rows
+      const logRows = document.querySelectorAll('.log-entry');
+      if (logRows.length > 0 && logs && logs.length > 0) {
+          const reversed = logs.slice().reverse();
+          logRows.forEach((row, i) => {
+              if (reversed[i] && reversed[i].location) {
+                  let loc = reversed[i].location;
+                  let locSpan = document.createElement('span');
+                  locSpan.className = 'sequence-step';
+                  locSpan.style.marginLeft = '10px';
+                  locSpan.style.fontSize = '10px';
+                  locSpan.style.minHeight = '20px';
+                  locSpan.textContent = typeof loc === 'string' ? loc : JSON.stringify(loc);
+                  
+                  // Color it based on if the backend gave it a warning/danger string,
+                  // or just default to success color for valid locations
+                  if (loc.includes('Unknown') || loc.includes('Blocked')) {
+                      locSpan.style.borderColor = 'var(--danger)';
+                      locSpan.style.color = 'var(--danger)';
+                      locSpan.style.background = 'var(--danger-soft)';
+                  } else {
+                      locSpan.style.borderColor = 'var(--success)';
+                      locSpan.style.color = 'var(--success)';
+                      locSpan.style.background = 'var(--success-soft)';
+                  }
+                  row.querySelector('.log-ip').appendChild(locSpan);
+              }
+          });
+      }
+  };
+
 </script>
 </body>
 </html>

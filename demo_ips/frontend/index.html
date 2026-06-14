@@ -569,16 +569,16 @@
           </svg>
         </div>
         <div>
-          <h1>Port Knocking Dashboard</h1>
-          <p class="subtitle">Dynamic firewall authentication</p>
+          <h1>Port Knocking <span style='color: var(--danger);'>+ IPS</span></h1>
+          <p class="subtitle">Intrusion Prevention System & Ban Logic</p>
         </div>
       </div>
       <div class="pill">System Active</div>
     </header>
 
     <nav style="display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap;">
-      <a href="/" class="btn btn-primary" style="text-decoration: none;">Original Mode</a>
-      <a href="/ips" class="btn btn-secondary" style="text-decoration: none;">IPS Mode</a>
+      <a href="/" class="btn btn-secondary" style="text-decoration: none;">Original Mode</a>
+      <a href="/ips" class="btn btn-primary" style="text-decoration: none;">IPS Mode</a>
       <a href="/totp" class="btn btn-secondary" style="text-decoration: none;">TOTP Mode</a>
       <a href="/geoip" class="btn btn-secondary" style="text-decoration: none;">GeoIP Mode</a>
     </nav>
@@ -647,8 +647,79 @@
               </div>
             </div>
           </div>
+        
+            <div class="control" style="border-color:rgba(184, 74, 69, 0.3); background:rgba(184, 74, 69, 0.05);">
+              <label class="label" style="color:var(--danger);">Step 1 — Send Wrong Knock (triggers strikes)</label>
+              <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;">
+                Knocks the specified <strong style="color:var(--danger)">wrong port sequence</strong>. Every wrong port knocked is 1 strike.<br>
+                After 3 strikes → IP gets <strong style="color:var(--danger)">banned for 5 minutes</strong>.
+              </p>
+              <div class="field">
+                <input type="text" id="wrongHost" value="127.0.0.1" placeholder="Target IP" style="flex: 0.4;">
+                <input type="text" id="customWrongSeq" placeholder="e.g. 29000, 28000, 27000" style="flex: 0.6;">
+                <button class="btn btn-danger" onclick="sendWrongKnock()" id="btnWrong" style="height:40px; font-size:13px;">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+                  Send Wrong Knock
+                </button>
+              </div>
+            </div>
+
+            <div class="control">
+              <label class="label">Step 2 — Send Correct Knock</label>
+              <p style="font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;">
+                Knocks ports in the <strong style="color:var(--accent)">correct sequence</strong>.<br>
+                If banned, connection will be instantly reset (TCP RST).
+              </p>
+              <div class="field">
+                <input type="text" id="correctHost" value="127.0.0.1" placeholder="Target IP">
+                <button class="btn btn-primary" onclick="sendCorrectKnock()" id="btnCorrect">
+                  <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h12M13 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  Send Correct Knock
+                </button>
+              </div>
+            </div>
+
         </section>
       </div>
+
+
+      <section class="panel">
+        <div class="panel-head" style="background:rgba(184, 74, 69, 0.05); border-bottom-color:rgba(184, 74, 69, 0.15);">
+          <h2 class="panel-title" style="color:var(--danger);">Banned IPs</h2>
+          <span class="panel-note">Currently blocked by IPS</span>
+        </div>
+        <div class="panel-body table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>Unban Time</th>
+                <th>Remaining</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bansBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2 class="panel-title" style="color:var(--warn);">Strike Monitor</h2>
+          <span class="panel-note">IPs approaching ban limit</span>
+        </div>
+        <div class="panel-body table-wrap" style="max-height: 200px; overflow: auto;">
+          <table style="margin:0;">
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>Strikes</th>
+              </tr>
+            </thead>
+            <tbody id="strikesBody"></tbody>
+          </table>
+        </div>
+      </section>
 
       <section class="panel">
         <div class="panel-head">
@@ -683,6 +754,14 @@
   </main>
 
 <script>
+
+  async function fetchAPI(endpoint, options = {}) {
+    const url = 'http://localhost:8081' + endpoint;
+    const res = await fetch(url, options);
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
   function showToast(msg, isError) {
     const el = document.createElement('div');
     el.className = 'toast ' + (isError ? 'err' : 'ok');
@@ -696,19 +775,26 @@
     }, 3500);
   }
 
+  
   async function refresh() {
     try {
-      const [statusRes, sessionsRes, logsRes] = await Promise.all([
-        fetch('/api/status'),
-        fetch('/api/sessions'),
-        fetch('/api/logs?n=50')
-      ]);
-      const status = await statusRes.json();
-      const sessionsData = await sessionsRes.json();
-      const logsData = await logsRes.json();
-      renderStatus(status);
-      renderSessions(sessionsData.sessions);
-      renderLogs(logsData.logs);
+      const p = [
+        fetchAPI('/api/status'),
+        fetchAPI('/api/sessions'),
+        fetchAPI('/api/logs?n=50')
+      ];
+      if ('ips' === 'ips') {
+        p.push(fetchAPI('/api/bans'));
+        p.push(fetchAPI('/api/strikes'));
+      }
+      const results = await Promise.all(p);
+      renderStatus(results[0]);
+      renderSessions(results[1].sessions);
+      renderLogs(results[2].logs);
+      if ('ips' === 'ips') {
+        renderBans(results[3].bans);
+        renderStrikes(results[4].strikes);
+      }
     } catch (e) {
       console.error('Dashboard refresh failed', e);
     }
@@ -789,7 +875,7 @@
 
   async function revoke(ip) {
     try {
-      await fetch('/api/revoke', {
+      await fetchAPI('/api/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ip })
@@ -802,13 +888,19 @@
     }
   }
 
+  
   async function simulateKnock() {
     const host = document.getElementById('simHost').value || '127.0.0.1';
+    let sequence;
     try {
-      await fetch('/api/knock', {
+        const st = await fetchAPI('/api/status');
+        sequence = st.sequence;
+    } catch(e) {}
+    try {
+      await fetchAPI('/api/knock', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ host })
+        body: JSON.stringify({ host, sequence })
       });
       showToast(`Knock sequence sent to ${host}`, false);
       refresh();
@@ -826,12 +918,11 @@
       return;
     }
     try {
-      const res = await fetch('/api/config/sequence', {
+      const data = await fetchAPI('/api/config/sequence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sequence })
       });
-      const data = await res.json();
       if (data.ok) {
         showToast('Sequence updated: ' + sequence.join(' / '), false);
         refresh();
@@ -850,12 +941,11 @@
       return;
     }
     try {
-      const res = await fetch('/api/test-port', {
+      const data = await fetchAPI('/api/test-port', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ port, host: '127.0.0.1' })
       });
-      const data = await res.json();
       if (data.ok) {
         showToast(data.message, !data.connected);
         setTimeout(refresh, 300);
@@ -879,6 +969,130 @@
 
   setInterval(refresh, 3000);
   refresh();
+
+  function renderBans(bans) {
+    const tbody = document.getElementById('bansBody');
+    if (!bans || bans.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty">No banned IPs</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = bans.map(b => {
+      const remaining = b.remaining_seconds || 0;
+      const ip = escapeHtml(b.ip);
+      return `<tr>
+          <td><span class="sequence-step" style="border-color:var(--danger); color:var(--danger);">${ip}</span></td>
+          <td class="time">${escapeHtml(b.unban_at)}</td>
+          <td class="remaining" style="color:var(--danger); font-weight:bold;">${remaining}s</td>
+          <td><button class="btn btn-secondary" onclick="unban('${ip}')" style="height: 32px; padding: 0 10px; font-size: 12px;">Unban</button></td>
+        </tr>`;
+    }).join('');
+  }
+
+  function renderStrikes(strikes) {
+    const tbody = document.getElementById('strikesBody');
+    if (!strikes || strikes.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="2"><div class="empty" style="min-height: 80px;">No strikes currently</div></td></tr>';
+      return;
+    }
+    tbody.innerHTML = strikes.map(s => {
+      const ip = escapeHtml(s.ip);
+      const c = s.strikes;
+      const m = s.max;
+      
+      let pips = '';
+      for (let i = 0; i < m; i++) {
+        let pipColor = i < c ? 'var(--danger)' : 'var(--surface-soft)';
+        let pipBorder = i < c ? 'var(--danger)' : 'var(--line-strong)';
+        pips += `<div style="display: inline-block; width: 14px; height: 14px; border-radius: 50%; border: 2px solid ${pipBorder}; background: ${pipColor}; margin-right: 4px;"></div>`;
+      }
+      
+      return `<tr>
+          <td><span class="ip">${ip}</span></td>
+          <td>
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-weight:bold; color:var(--danger);">${c}/${m}</span>
+              <div style="display: flex; gap: 2px;">${pips}</div>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function unban(ip) {
+      try {
+          await fetchAPI('/api/unban', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip })
+          });
+          showToast(`Unbanned ${ip}`, false);
+          refresh();
+      } catch (e) {
+          showToast('Failed to unban: ' + e.message, true);
+      }
+  }
+
+  async function sendWrongKnock() {
+    const host = document.getElementById('wrongHost').value.trim() || '127.0.0.1';
+    let rawSeq = document.getElementById('customWrongSeq').value.trim();
+    let wrongSeq;
+
+    if (rawSeq) {
+      wrongSeq = rawSeq.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+      if (wrongSeq.length === 0) {
+        showToast('Enter valid port numbers (comma-separated)', true);
+        return;
+      }
+    } else {
+      try {
+        const st = await fetchAPI('/api/status');
+        const correct = st.sequence || [27000, 28000, 29000];
+        wrongSeq = [...correct].reverse();
+        if (JSON.stringify(wrongSeq) === JSON.stringify(correct)) {
+            wrongSeq[0] = 27500;
+        }
+      } catch {
+        wrongSeq = [29000, 28000, 27000];
+      }
+      document.getElementById('customWrongSeq').value = wrongSeq.join(', ');
+    }
+
+    try {
+      await fetchAPI('/api/knock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host, sequence: wrongSeq, delay: 0.3 })
+      });
+      showToast(`Wrong knock sent: ${wrongSeq.join(' → ')}`, false);
+      setTimeout(refresh, 1200);
+    } catch (e) {
+      showToast('Network error: ' + e.message, true);
+    }
+  }
+
+  async function sendCorrectKnock() {
+    const host = document.getElementById('correctHost').value.trim() || '127.0.0.1';
+    let correctSeq;
+    try {
+      const st = await fetchAPI('/api/status');
+      correctSeq = st.sequence || [27000, 28000, 29000];
+    } catch {
+      correctSeq = [27000, 28000, 29000];
+    }
+
+    try {
+      await fetchAPI('/api/knock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ host, sequence: correctSeq, delay: 0.3 })
+      });
+      showToast(`Correct knock sent: ${correctSeq.join(' → ')}`, false);
+      setTimeout(refresh, 1200);
+    } catch (e) {
+      showToast('Network error: ' + e.message, true);
+    }
+  }
+
 </script>
 </body>
 </html>
