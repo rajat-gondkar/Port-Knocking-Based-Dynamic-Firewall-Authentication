@@ -63,7 +63,8 @@ def main():
 
     print(f"[*] Knock server running. Sequence: {config['knock_sequence']}")
     print(f"[*] Protected service on port {config['service_port']}")
-    print(f"[*] Dashboard at http://localhost:8080/")
+    print(f"[*] Hub page:  http://localhost:{config.get('api_port', 8084)}/")
+    print(f"[*] Dashboard: http://localhost:{config.get('api_port', 8084)}/dashboard")
 
     # Keep main thread alive
     try:

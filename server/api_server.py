@@ -54,7 +54,10 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
         def do_GET(self):
             path = self.path
 
-            if path == "/":
+            if path == "/" or path == "/home":
+                self._serve_frontend("home.html")
+                return
+            if path == "/dashboard":
                 self._serve_frontend("index.html")
                 return
             if path == "/ips":
