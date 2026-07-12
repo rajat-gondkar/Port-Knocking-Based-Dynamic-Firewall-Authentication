@@ -42,8 +42,13 @@ def _listen_on_port(port: int, host: str, tracker: "SequenceTracker", firewall: 
             progress = tracker.get_progress(client_ip)
 
             if success:
-                logger.log("AUTH_SUCCESS", client_ip, port, f"Sequence complete. Opening port.")
-                firewall.open_port(client_ip)
+                from server.geoip import is_valid_location, get_location
+                loc = get_location(client_ip)
+                if is_valid_location(client_ip):
+                    logger.log("AUTH_SUCCESS", client_ip, port, f"Sequence complete. Location: {loc}. Opening port.")
+                    firewall.open_port(client_ip)
+                else:
+                    logger.log("GEOIP_BLOCKED", client_ip, port, f"Sequence complete, but location {loc} is blocked.")
             else:
                 # If progress is 0 after this knock, it means wrong knock / reset
                 if progress.startswith("0/"):

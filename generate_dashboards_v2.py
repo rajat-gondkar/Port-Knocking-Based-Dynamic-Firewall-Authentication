@@ -370,6 +370,11 @@ totp_html = generate_dashboard(
     totp_js
 )
 
+# Remove the Update Sequence control block entirely for TOTP mode
+totp_html = re.sub(r'<div class="control">\s*<label class="label" for="customSeq">Update Sequence</label>.*?</div>\s*</div>', '', totp_html, flags=re.DOTALL)
+
+
+
 with open('frontend/totp.html', 'w') as f:
     f.write(totp_html)
 with open('demo_totp/frontend/index.html', 'w') as f:
@@ -415,13 +420,40 @@ geoip_js = """
   };
 """
 
+geoip_controls = """
+            <div class="control">
+              <label class="label" for="toggleGeoIP">Toggle Localhost Validation</label>
+              <div class="field">
+                <button class="btn btn-primary" onclick="toggleGeoIP()">
+                  <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" fill="currentColor"/></svg>
+                  Toggle Valid/Invalid
+                </button>
+              </div>
+            </div>
+"""
+
+geoip_js += """
+  async function toggleGeoIP() {
+    try {
+      const res = await fetchAPI('/api/toggle-geoip', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+      showToast(res.valid ? "Localhost is now Valid" : "Localhost is now Blocked (Invalid)", false);
+      refresh();
+    } catch (e) {
+      showToast("Error toggling GeoIP", true);
+    }
+  }
+"""
+
 geoip_html = generate_dashboard(
     'geoip', 
     "Port Knocking <span style='color: var(--success);'>+ GeoIP</span>", 
     "Location-based Filtering", 
     8083, 
     "http://localhost:8083/", 
-    "", 
+    geoip_controls, 
     "", 
     geoip_js
 )
