@@ -107,6 +107,12 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
                 logger.log("PORT_CLOSED", ip, config.get("service_port"), "Revoked via API")
                 self._send_json({"ok": True})
                 return
+            if path == "/api/toggle-geoip":
+                from server import geoip
+                geoip.LOCALHOST_VALID = not geoip.LOCALHOST_VALID
+                logger.log("CONFIG_UPDATE", "127.0.0.1", None, f"Localhost Validity toggled to {geoip.LOCALHOST_VALID}")
+                self._send_json({"ok": True, "valid": geoip.LOCALHOST_VALID})
+                return
 
             if path == "/api/knock":
                 host = payload.get("host", "127.0.0.1")

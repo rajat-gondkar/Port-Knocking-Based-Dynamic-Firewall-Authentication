@@ -121,43 +121,12 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
                 self._send_json({"ok": True, "message": f"Knocked {host} with {sequence}"})
                 return
 
+            if path == "/api/update-sequence":
+                self._send_json({"ok": False, "error": "Sequence is automatically managed by time-based cryptographic rotation in TOTP mode. Manual updates are disabled."}, 400)
+                return
+
             if path == "/api/config/sequence":
-                new_sequence = payload.get("sequence", [])
-                if not isinstance(new_sequence, list) or len(new_sequence) == 0:
-                    self._send_json({"ok": False, "error": "sequence must be a non-empty list of integers"}, 400)
-                    return
-
-                # Validate all entries are ints > 1024
-                bad = [p for p in new_sequence if not isinstance(p, int) or p <= 1024]
-                if bad:
-                    self._send_json({"ok": False, "error": f"All ports must be integers > 1024. Invalid: {bad}"}, 400)
-                    return
-
-                # Check if ports are free (skip ports we already own)
-                host = config.get("host", "0.0.0.0")
-                # Import here to avoid circular import issues at module level
-                from server.knock_server import is_port_free, restart_knock_listeners
-
-                current_ports = set(config.get("knock_ports", []))
-                occupied = [p for p in new_sequence if p not in current_ports and not is_port_free(host, p)]
-                if occupied:
-                    self._send_json({
-                        "ok": False,
-                        "error": f"Port(s) already in use: {occupied}. Please change them.",
-                        "occupied_ports": occupied
-                    }, 409)
-                    return
-
-                # Update config and tracker
-                config["knock_sequence"] = new_sequence
-                config["knock_ports"] = new_sequence
-                tracker.expected_sequence = new_sequence
-
-                # Restart listeners
-                restart_knock_listeners(config, tracker, firewall, logger)
-
-                logger.log("CONFIG_UPDATE", "127.0.0.1", None, f"Sequence changed to {new_sequence}")
-                self._send_json({"ok": True, "sequence": new_sequence})
+                self._send_json({"ok": False, "error": "Sequence is automatically managed in TOTP mode."}, 400)
                 return
 
             if path == "/api/test-port":
