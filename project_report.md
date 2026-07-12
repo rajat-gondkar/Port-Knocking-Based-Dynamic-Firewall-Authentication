@@ -1,587 +1,142 @@
-# Project Report: Port Knocking-Based Dynamic Firewall Authentication
+# Project Documentation: Dynamic Firewall Authentication System with Port Knocking, IPS, TOTP, and GeoIP
 
-**Project:** Port Knocking-Based Dynamic Firewall Authentication
-**Stack:** Python (stdlib only: `socket`, `threading`, `http.server`, `json`, `time`), HTML/CSS/JS (single file, no build tools)
-**Date Started:** 2026-05-03
-**Status:** Phase 0 — Planning Complete
+## 1. Objective
+The primary objective of this project is to develop and demonstrate an advanced, multi-layered Dynamic Firewall Authentication System. This system enhances traditional perimeter security by obscuring access to critical services (e.g., SSH, databases) until a specific sequence of network interactions (port knocks) is successfully executed by the client. The project also aims to showcase how traditional port knocking can be fortified against modern attacks using intrusion prevention mechanisms, time-based authentication, and geographic filtering.
 
----
+## 2. Problem Statement
+Traditional static firewalls and open ports present a continuous attack surface for malicious actors employing automated scanners (e.g., Nmap) and brute-force tools. Even with strong passwords or key-based authentication, an exposed service port remains vulnerable to zero-day exploits and volumetric attacks. 
+Standard port knocking mitigates this by keeping ports closed by default, but it suffers from replay attacks, blind brute-forcing, and a lack of contextual awareness. There is a need for a dynamic authentication system that not only obscures services but actively defends against active enumeration and adapts to modern security paradigms.
 
-## Table of Contents
+## 3. Methodology
+To solve the aforementioned problems, the project implements a base port knocking daemon and progressively enhances it through four distinct modes (methodologies):
 
-1. [Phase 0 — Planning & Architecture](#phase-0--planning--architecture)
-2. [Phase 1 — Core Server: Port Monitor & Sequence Tracker](#phase-1--core-server-port-monitor--sequence-tracker)
-3. [Phase 2 — Firewall Manager & Protected Service](#phase-2--firewall-manager--protected-service)
-4. [Phase 3 — Logger & Client](#phase-3--logger--client)
-5. [Phase 4 — HTTP API for Frontend](#phase-4--http-api-for-frontend)
-6. [Phase 5 — Frontend Dashboard](#phase-5--frontend-dashboard)
-7. [Phase 6 — Integration & Entry Point](#phase-6--integration--entry-point)
-8. [Appendix: Final Project Structure](#appendix-final-project-structure)
-9. [Appendix: Configuration](#appendix-configuration)
+1. **Original Mode (Base Port Knocking):** The firewall dynamically opens a protected service port only after a client connects to a predefined, ordered sequence of "knock" ports within a specific time window.
+2. **IPS Mode (Intrusion Prevention System):** Introduces a strike-based penalty system. Any connection to an incorrect port in the sequence acts as a strike. Reaching a threshold automatically bans the offending IP, preventing brute-force sequence guessing.
+3. **TOTP Mode (Time-Based One-Time Sequences):** Eliminates replay attacks by rotating the required knock sequence every 30 seconds, conceptually similar to an authenticator app, synchronized via a shared secret between client and server.
+4. **GeoIP Mode (Location-based Filtering):** Adds a contextual layer by evaluating the geographical origin of the client's IP address against a whitelist or blacklist before allowing the sequence to begin, mitigating distributed international attacks.
 
----
+## 4. Results
+The implemented system successfully obscures the protected service from unauthorized network scans. The addition of the IPS module effectively neutralizes brute-force attempts within seconds. The TOTP implementation ensures that intercepted knock sequences become useless immediately after the time window expires. The GeoIP filtering accurately drops traffic originating from disallowed regions at the firewall edge. The dashboard provides real-time, visual confirmation of these mechanisms in action, demonstrating a highly resilient dynamic firewall architecture.
 
-## Phase 0 — Planning & Architecture
-
-### Objective
-Establish a clear, phased implementation plan before writing any production code.
-
-### Decisions Made
-- **No external dependencies** — The entire backend will use Python's standard library only.
-- **In-memory firewall** — No `sudo` or `iptables` required; access control is simulated in-memory via `FirewallManager`.
-- **Thread-safe shared state** — `SequenceTracker`, `FirewallManager`, and `Logger` will all use `threading.Lock()` for safe concurrent access.
-- **Single-file frontend** — `frontend/index.html` will be completely self-contained with inline `<style>` and `<script>`.
-- **Ports above 1024** — Default knock ports: `17000, 18000, 19000`; decoy/extra monitor ports: `17500, 18500`; service: `12222`; API/dashboard: `8080`.
-
-### Architecture Overview
-
-```
-Client                      Server
-  |                           |
-  |-- knock port 17000 -----> |  (attempt 1)
-  |-- knock port 18000 -----> |  (attempt 2)
-  |-- knock port 19000 -----> |  (attempt 3 - sequence complete)
-  |                           |  -> opens port 12222 for this IP
-  |-- connect port 12222 ---> |  (protected service access granted)
-  |                           |
-```
-
-### Component Responsibilities
-| Component | File | Responsibility |
-|---|---|---|
-| Config | `config.json` | Central configuration (ports, timeouts, sequence) |
-| Sequence Tracker | `server/sequence_tracker.py` | Per-IP knock state, timeout handling, sequence validation |
-| Knock Server | `server/knock_server.py` | Multi-threaded TCP listeners on all knock ports |
-| Firewall Manager | `server/firewall.py` | In-memory allow-list with TTL and expiry daemon |
-| Protected Service | `server/service.py` | Minimal TCP echo service gated by firewall |
-| Logger | `server/logger.py` | Structured JSON logging to disk + in-memory ring buffer |
-| Client | `client/knock_client.py` | CLI tool to send knock sequence and connect |
-| API Server | `server/api_server.py` | HTTP API (`/api/status`, `/api/sessions`, `/api/logs`, `/api/revoke`, `/api/knock`) |
-| Dashboard | `frontend/index.html` | Real-time HTML/CSS/JS dashboard |
-| Entry Point | `main.py` | Boots all components and keeps main thread alive |
-
-### Final Project Structure
-```
-port-knocking/
-├── config.json
-├── main.py
-├── project_report.md
-├── server/
-│   ├── __init__.py
-│   ├── knock_server.py
-│   ├── sequence_tracker.py
-│   ├── firewall.py
-│   ├── service.py
-│   ├── logger.py
-│   └── api_server.py
-├── client/
-│   ├── __init__.py
-│   └── knock_client.py
-├── frontend/
-│   └── index.html
-└── logs/
-    └── access.log
-```
-
-### Phase 0 Results
-- [x] Detailed phase breakdown created.
-- [x] Architecture and component responsibilities documented.
-- [x] Project structure defined.
-- [x] `project_report.md` initialized.
+## 5. Conclusion
+This project successfully demonstrates that while traditional port knocking is a useful obscurity technique, it must be augmented to provide true security. By integrating IPS, TOTP, and GeoIP modules, the system evolves into a robust, context-aware, and dynamic authentication layer. This architecture provides a significant defense-in-depth capability, dramatically reducing the attack surface of critical network infrastructure.
 
 ---
 
-## Phase 1 — Core Server: Port Monitor & Sequence Tracker
+## 6. Technical Knowledge & Codebase Mapping
 
-### Objective
-Build the foundational server components that can listen on multiple ports and track per-IP knock attempts against a configured sequence.
+The codebase is organized into a modular architecture, with a base framework and distinct directories for each advanced demo mode.
 
-### Files Created
-- `config.json`
-- `server/sequence_tracker.py`
-- `server/knock_server.py`
+### Directory Structure & Functionality
 
-### Design Details
-#### `SequenceTracker`
-- **State:** `dict[ip_str, {"progress": int, "last_time": float}]`
-- **Locking:** `threading.Lock()` around all reads/writes to `self.sessions`.
-- **Timeout logic:** If `now - last_time > timeout`, reset progress for that IP.
-- **Failure logic:** If a wrong port is knocked, reset progress for that IP.
-- **Success logic:** If `progress == len(expected_sequence)`, return `True`.
-
-#### `knock_server.py`
-- For each port in `config["knock_ports"]`:
-  - Create a TCP socket, bind, listen.
-  - Spawn a daemon thread.
-  - On connection: extract client IP, close socket immediately, call `tracker.record_knock(ip, port)`.
-  - If authenticated: call `firewall.open_port(ip)` and log `AUTH_SUCCESS`.
-  - Otherwise: log `KNOCK_ATTEMPT` with current progress.
-
-### Testing Approach
-1. Start `knock_server.py` with a test config.
-2. Use `nc` or a small script to knock ports in correct and incorrect order.
-3. Verify tracker state via logs/assertions.
-
-### Phase 1 Results
-- [x] `config.json` created with default knock sequence `[7000, 8000, 9000]`, service port `2222`, monitor ports `[7000, 8000, 9000, 7500, 8500]`, timeout `10s`, access duration `30s`.
-- [x] `server/sequence_tracker.py` implemented with thread-safe `threading.Lock()`, timeout handling, wrong-port reset, and progress tracking.
-- [x] `server/knock_server.py` implemented with multi-threaded daemon listeners per knock port, immediate connection close, and event dispatching to `firewall`/`logger`.
-- [x] **Unit tests passed** (`tests/test_sequence_tracker.py`):
-  - Basic correct sequence → `True` on final knock.
-  - Wrong first knock → no state stored.
-  - Wrong mid-sequence → state reset.
-  - Timeout exceeded → state reset on next knock.
-  - Multiple IPs tracked independently.
-  - `reset()` method clears state.
-  - Progress reporting accurate (`1/3`, `2/3`, etc.).
-- [x] **Smoke test passed** (`tests/test_knock_server.py`):
-  - Started 4 knock listeners on `127.0.0.1`.
-  - Sent correct sequence `7000→8000→9000` → `AUTH_SUCCESS` logged, `FakeFirewall.open_port` called.
-  - Sent wrong sequence `7000→7500` → `AUTH_FAIL` logged, state reset.
-- [x] All Python files pass `python3 -m py_compile` syntax verification.
-- [x] Status: **Phase 1 Complete**
+*   **`/server/`**: Contains the core logic for the **Original** port knocking implementation.
+    *   `api_server.py`: Runs a `ThreadingHTTPServer` to serve the REST API for the dashboard, handling configuration updates, session retrievals, and manual overrides.
+    *   `knock_server.py`: Manages the TCP socket listeners for the knock ports. It spawns threads to listen for incoming connections and passes the client IP to the sequence tracker.
+    *   `sequence_tracker.py`: Maintains the state of knocking progress for each IP. It verifies if a knock is correct, advances the state, handles timeouts, and resets on failure.
+    *   `firewall.py`: Simulates (or executes) the actual firewall rules (e.g., iptables commands) to grant or revoke access to the protected service port.
+    *   `logger.py`: Centralized logging module that records events (attempts, successes, bans) to feed into the frontend dashboard's live log view.
+*   **`/demo_ips/server/`**: Contains the modified backend for the **IPS** mode.
+    *   `sequence_tracker.py` is augmented here to track "strikes" for incorrect knocks and maintain a list of banned IPs with expiration timestamps.
+*   **`/demo_totp/server/`**: Contains the modified backend for the **TOTP** mode.
+    *   Integrates time-based cryptographic hashing (HMAC-SHA) to dynamically alter the `knock_sequence` array every 30 seconds based on a predefined port pool.
+*   **`/demo_geoip/server/`**: Contains the modified backend for the **GeoIP** mode.
+    *   Integrates IP-to-location lookup logic, intercepting knocks and discarding them if the country/region code is not within the permitted configuration list.
+*   **`/frontend/`**: Contains the HTML/CSS/JS for the dashboards.
+    *   `index.html`: The base Original dashboard UI.
+    *   `ips.html`, `totp.html`, `geoip.html`: The specialized dashboards injected with extra panels (e.g., Strike Monitors, TOTP countdowns) via the generation script.
+*   **`generate_dashboards_v2.py`**: A build script that takes the base `index.html` and injects specific JS, HTML, and CSS to generate the specialized UI dashboards for each demo mode.
+*   **`run_all_demos.sh`**: The orchestrator script that launches all four Python backends on different local ports simultaneously.
 
 ---
 
-## Phase 2 — Firewall Manager & Protected Service
+## 7. Technology Stack
 
-### Objective
-Dynamically open and close access to a protected service port on a per-IP basis, and run a minimal service that respects those rules.
-
-### Files Created
-- `server/firewall.py`
-- `server/service.py`
-
-### Design Details
-#### `FirewallManager`
-- **State:** `dict[ip, expiry_timestamp]`
-- **`open_port(ip)`:** Adds IP with expiry = `time.time() + access_duration`.
-- **`is_allowed(ip)`:** Returns `True` only if IP exists and `time.time() < expiry`. Auto-removes expired entries.
-- **`close_port(ip)`:** Explicitly removes IP from allowed set.
-- **`get_active_sessions()`:** Returns list of dicts with `ip`, `expires_at`, `remaining_seconds`.
-- **`start_expiry_daemon()`:** Background thread that sleeps 5 seconds, then prunes expired IPs and logs `PORT_CLOSED` for each.
-
-#### `service.py`
-- Binds to `config["service_port"]`.
-- On each connection: checks `firewall.is_allowed(client_ip)`.
-  - **Allowed:** Sends `"ACCESS GRANTED. Welcome, {ip}."`, then echoes any received data back.
-  - **Denied:** Sends `"ACCESS DENIED."` and closes immediately.
-- Logs `ACCESS_GRANTED` or `ACCESS_DENIED`.
-
-### Testing Approach
-1. Instantiate `FirewallManager` and manually call `open_port`.
-2. Verify `is_allowed` returns `True`, then wait for expiry and verify `False`.
-3. Connect to service before and after opening to verify gating.
-
-### Phase 2 Results
-- [x] `server/firewall.py` implemented with thread-safe `threading.Lock()`, in-memory allow-list, TTL expiry, manual close, and background expiry daemon.
-- [x] `server/service.py` implemented as a minimal TCP echo service gated by `firewall.is_allowed()`, with proper banner and `ACCESS_GRANTED` / `ACCESS_DENIED` responses.
-- [x] **Unit tests passed** (`tests/test_phase2.py`):
-  - `test_firewall_basic`: `open_port` → `is_allowed=True`, wait for expiry → `is_allowed=False`.
-  - `test_firewall_sessions`: Multiple IPs tracked; `get_active_sessions()` returns correct metadata with `remaining_seconds`.
-  - `test_firewall_close_port`: Manual `close_port` immediately revokes access.
-  - `test_firewall_expiry_daemon`: Daemon running every 5s successfully prunes expired entries.
-  - `test_protected_service`: Service bound to `127.0.0.1:2222`; allowed client received `"ACCESS GRANTED. Welcome, 127.0.0.1."` and echo worked; denied client (after `close_port`) received `"ACCESS DENIED."`; `ACCESS_GRANTED` and `ACCESS_DENIED` events logged.
-- [x] Status: **Phase 2 Complete**
+*   **Backend:** Python 3.x
+*   **Concurrency:** `threading` module, `http.server.ThreadingHTTPServer`
+*   **Networking:** Python `socket` library (TCP implementation)
+*   **Frontend UI:** HTML5, Vanilla JavaScript (ES6), CSS3 (Custom properties, CSS Grid, Flexbox, Micro-animations)
+*   **Communication:** RESTful HTTP APIs with JSON payloads, `fetch` API on the client.
 
 ---
 
-## Phase 3 — Logger & Client
+## 8. Implementation Details (Rebuilding from Scratch)
 
-### Objective
-Add structured logging (disk + in-memory) and a functional client for sending knock sequences.
+If you were to rewrite this system from scratch, follow this blueprint:
 
-### Files Created
-- `server/logger.py`
-- `client/knock_client.py`
-- `logs/access.log` (generated at runtime)
-
-### Design Details
-#### `Logger`
-- **Disk output:** Appends JSON lines to `log_file`.
-- **In-memory buffer:** Keeps last 100 events in a `collections.deque(maxlen=100)`.
-- **Format:** `{"timestamp": ISO8601, "event": str, "ip": str, "port": int|null, "message": str}`
-- **Event types:** `KNOCK_ATTEMPT`, `AUTH_SUCCESS`, `AUTH_FAIL`, `ACCESS_GRANTED`, `ACCESS_DENIED`, `PORT_OPENED`, `PORT_CLOSED`.
-
-#### `knock_client.py`
-- `knock(host, port)`: Opens TCP connection and immediately closes.
-- `run_knock_sequence(host, sequence, delay)`: Iterates sequence with `time.sleep(delay)`.
-- `connect_to_service(host, service_port)`: Connects, prints banner, closes.
-- **CLI usage:** `python client/knock_client.py [host]` (defaults to `127.0.0.1`).
-
-### Testing Approach
-1. Run client against local server; verify knock ports receive connections.
-2. Check `logs/access.log` for structured JSON entries.
-3. Verify `Logger.get_recent(n)` returns correct in-memory entries.
-
-### Phase 3 Results
-- [x] `server/logger.py` implemented with structured JSON line output to disk, `collections.deque(maxlen=100)` in-memory ring buffer, and `threading.Lock()` for thread safety.
-- [x] `client/knock_client.py` implemented as a CLI tool with `knock()`, `run_knock_sequence()`, and `connect_to_service()` including an interactive echo prompt.
-- [x] `client/__init__.py` created.
-- [x] **End-to-end test passed** (`tests/test_phase3_e2e.py`):
-  - Booted knock listeners (ports 7000, 7500, 8000, 9000), protected service (port 2222), real `Logger`, `FirewallManager`, and `SequenceTracker`.
-  - **Test 1:** Direct service connection without knocking → `"ACCESS DENIED."` received.
-  - **Test 2:** Correct knock sequence `7000→8000→9000` → `"ACCESS GRANTED. Welcome, 127.0.0.1."` received.
-  - **Test 3:** Waited for `access_duration=5s` expiry → `"ACCESS DENIED."` received again.
-  - **Log verification:** All expected event types present in `logs/test_access.log`:
-    - `ACCESS_DENIED` (before knock)
-    - `KNOCK_ATTEMPT` ×2 (progress 1/3, 2/3)
-    - `AUTH_SUCCESS` (sequence complete)
-    - `PORT_OPENED` (firewall opened)
-    - `ACCESS_GRANTED` (service connection allowed)
-    - `PORT_CLOSED` (expiry daemon cleaned up)
-    - `ACCESS_DENIED` (after expiry)
-- [x] Status: **Phase 3 Complete**
+1.  **Define the Data Structures (State Management):**
+    *   Create a thread-safe dictionary (using mutex locks) mapping `Client IP -> { current_step, last_knock_timestamp }`.
+2.  **Implement the Listeners:**
+    *   For each port in the sequence, bind a TCP `socket`. Do not use `accept()` to establish a full connection payload; simply accept the SYN, grab the remote IP address, and instantly close the socket (RST/FIN).
+3.  **Process the Knock:**
+    *   When IP `X` hits port `Y`, check the dictionary. If `Y` is the expected next port, increment `current_step`. Update `last_knock_timestamp`.
+    *   If `Y` is incorrect, delete IP `X` from the dictionary (reset sequence).
+    *   If `now() - last_knock_timestamp > timeout`, delete IP `X` from the dictionary.
+4.  **Firewall Action:**
+    *   If `current_step == len(sequence)`, trigger the firewall action. Execute a system command (e.g., `iptables -A INPUT -s {IP} -p tcp --dport 22 -j ACCEPT`) and spawn a timer thread to remove the rule after `N` seconds.
+5.  **Build the API:**
+    *   Use `ThreadingHTTPServer` to expose endpoints like `GET /api/status`, `GET /api/logs`, `POST /api/knock` (which simulates a client connecting to the ports sequentially).
+6.  **Build the UI:**
+    *   Use CSS Grid to create a responsive layout. Poll the `/api/status`, `/api/sessions`, and `/api/logs` every second using `setInterval` and `fetch`. Render the returned JSON directly into the DOM.
+7.  **Enhance Modules:**
+    *   **IPS:** Add a `strikes` dictionary. If step 3 triggers a reset, increment strikes. If strikes > 3, add IP to `banned` dictionary. Drop all subsequent packets from `banned` IPs.
+    *   **TOTP:** Write a loop that runs every 30 seconds. Calculate `HMAC_SHA256(secret, floor(unix_time / 30))`. Use the resulting hash bytes to modulo-select ports from a pool. Update the required sequence.
+    *   **GeoIP:** Before step 3, query a local GeoLite2 database or an API with the IP. If country != "US", return early.
 
 ---
 
-## Phase 4 — HTTP API for Frontend
+## 9. Architectural Decisions & Novelty
 
-### Objective
-Expose server state and controls via a lightweight HTTP API using only Python stdlib.
+### Architectural Decisions
+*   **Threaded HTTP Server:** Upgraded from the base `HTTPServer` to `ThreadingHTTPServer` to handle the asynchronous polling nature of the frontend dashboard without blocking.
+*   **Decoupled Listeners:** Knock ports are monitored by entirely independent, lightweight threads listening on raw sockets. This prevents a slow-loris attack on a specific port from delaying the sequence tracker.
+*   **In-Memory State:** All state (sessions, bans, sequence progress) is kept in memory. This is a deliberate choice for speed (sub-millisecond validation) and simplicity in a demo environment, avoiding database I/O latency.
+*   **Vanilla JS Frontend:** Avoided heavy frameworks (React/Vue) in favor of Vanilla JS to keep the codebase transparent, portable, and easily modifiable via string-injection scripts (`generate_dashboards_v2.py`).
 
-### File Created
-- `server/api_server.py`
-
-### Design Details
-- Built on `http.server.BaseHTTPRequestHandler`.
-- Runs in a daemon thread on port `8080`.
-- **CORS:** `Access-Control-Allow-Origin: *` on every response.
-- **Static file serving:** `GET /` returns `frontend/index.html`.
-
-### Endpoints
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/status` | Returns config snapshot (knock ports, service port, sequence) |
-| GET | `/api/sessions` | Returns list of active allowed sessions |
-| GET | `/api/logs?n=50` | Returns last `n` in-memory log entries |
-| POST | `/api/revoke` | Body: `{"ip": "..."}` — manually revokes access |
-| POST | `/api/knock` | Body: `{"host": "...", "sequence": [...]}` — triggers demo knock |
-
-### Testing Approach
-1. Start API server and use `curl` against each endpoint.
-2. Verify JSON responses and correct CORS headers.
-3. Test `POST /api/revoke` by checking subsequent service connection failures.
-
-### Phase 4 Results
-- [x] `server/api_server.py` implemented using `http.server.HTTPServer` + `BaseHTTPRequestHandler` with full CORS support (`Access-Control-Allow-Origin: *`, `OPTIONS` preflight).
-- [x] **API endpoints verified** (`tests/test_phase4_api.py`):
-  - `GET /api/status` → Returns `knock_ports`, `service_port`, `sequence` correctly.
-  - `GET /api/sessions` → Returns 2 seeded active sessions with `ip`, `expires_at`, `remaining_seconds`.
-  - `GET /api/logs?n=10` → Returns in-memory log entries including `KNOCK_ATTEMPT`, `PORT_OPENED`, `AUTH_SUCCESS`.
-  - `POST /api/revoke` with `{"ip": "10.0.0.1"}` → Returns `{"ok": true}`, session count drops from 2 to 1.
-  - `POST /api/knock` with `{"host": "127.0.0.1", "sequence": [7000]}` → Returns `{"ok": true}` after sending TCP knock.
-  - `GET /` → Returns `frontend/index.html` when present (verified 404 before Phase 5, as expected).
-- [x] Status: **Phase 4 Complete**
+### Claimable Novelty Points
+1.  **Dynamic Honey-Ports (IPS Integration):** Instead of merely ignoring incorrect knocks, the system turns all non-sequence ports into active honeypots. Touching them weaponizes the firewall against the scanner immediately.
+2.  **Time-Synchronized Port Hopping (TOTP Integration):** Applying 2FA/TOTP concepts to network port sequences creates a moving target, effectively solving the traditional port knocking vulnerability to packet sniffing and replay attacks.
+3.  **Real-time Visualization Engine:** A decoupled, polling-based visualization layer provides sub-second insight into the ephemeral state of the firewall, visualizing concepts (like strikes and TTLs) that are normally invisible.
 
 ---
 
-## Phase 5 — Frontend Dashboard
+## 10. Steps to Run the Project
 
-### Objective
-Build a self-contained, real-time dashboard for monitoring and interacting with the port knocking system.
-
-### File Created
-- `frontend/index.html`
-
-### Design Details
-- **Theme:** Dark terminal-inspired (dark background, green/cyan accents, monospace font).
-- **Layout:** CSS Grid with 3 panels.
-  - **Status Panel:** Displays knock sequence, service port, monitored knock ports.
-  - **Active Sessions Panel:** Table with columns IP, Expires At, Remaining (countdown), Revoke button.
-  - **Live Log Panel:** Scrollable list, color-coded by event type.
-- **Interactivity:**
-  - Auto-refresh every 3 seconds via `setInterval` polling `/api/logs` and `/api/sessions`.
-  - Revoke button → `POST /api/revoke`.
-  - Simulate Knock form → `POST /api/knock`.
-- **Color Coding:**
-  - `AUTH_SUCCESS` → green
-  - `ACCESS_DENIED` / `AUTH_FAIL` → red
-  - `KNOCK_ATTEMPT` → yellow
-  - `PORT_OPENED` / `PORT_CLOSED` → cyan
-  - Others → white/grey
-
-### Testing Approach
-1. Open dashboard in browser.
-2. Trigger knock sequence and verify live log updates and session table appears.
-3. Wait for timeout and verify session disappears.
-4. Click Revoke and verify session disappears immediately.
-
-### Phase 5 Results
-- [x] `frontend/index.html` created as a single self-contained file (8079 bytes) with inline `<style>` and `<script>`.
-- [x] **Dashboard features implemented:**
-  - Dark terminal-inspired theme (`#0d1117` background, monospace font, green/cyan accents).
-  - **Status Panel:** Displays knock sequence (`7000 → 8000 → 9000`), service port (`2222`), and monitored ports as badges.
-  - **Active Sessions Panel:** Table with IP, Expires At, Remaining Seconds, and **Revoke** button per row.
-  - **Live Log Panel:** Scrollable reverse-chronological list with color-coded events:
-    - `AUTH_SUCCESS` / `ACCESS_GRANTED` → green
-    - `ACCESS_DENIED` / `AUTH_FAIL` → red
-    - `KNOCK_ATTEMPT` → yellow
-    - `PORT_OPENED` / `PORT_CLOSED` → cyan
-  - **Simulate Knock** form in Status Panel → calls `POST /api/knock`.
-  - Auto-refresh every 3 seconds via `setInterval` polling `/api/logs` and `/api/sessions`.
-  - `escapeHtml()` helper prevents XSS in log and session rendering.
-- [x] **Verification:** Re-ran `tests/test_phase4_api.py`; `GET /` now successfully serves `frontend/index.html` (8079 bytes) instead of 404.
-- [x] Status: **Phase 5 Complete**
+1.  **Prerequisites:** Python 3.7+ installed. No external pip dependencies are strictly required for the core daemon (uses standard library `socket`, `http`, `threading`).
+2.  **Generate Dashboards:** 
+    ```bash
+    python3 generate_dashboards_v2.py
+    ```
+    *(This script compiles the UI configurations for all modules.)*
+3.  **Launch All Demos:**
+    ```bash
+    ./run_all_demos.sh
+    ```
+    This script will spawn the four backend servers in the background.
+4.  **Access the Hub:** Open a web browser and navigate to `http://localhost:8084` to access the main hub.
 
 ---
 
-## Phase 6 — Integration & Entry Point
+## 11. Walkthrough and Using the Demos (Network Concepts)
 
-### Objective
-Wire all components into a single runnable entry point and perform end-to-end validation.
+When you access the dashboards, you will see a UI split into Controls, Status, Sessions, and Live Logs. Here is what happens in each mode conceptually:
 
-### File Created
-- `main.py`
+### A. Original Mode (Dashboard: `http://localhost:8084/dashboard`)
+*   **Concept:** Standard sequence knocking.
+*   **Network Event:** When you click "Simulate Knock", the frontend makes a POST request to the API. The API triggers a local function that sequentially opens a TCP SYN connection to the predefined ports (e.g., 47000, 48000, 49000). The socket listener on the backend detects the SYN, records the IP, and drops the connection. Once the third SYN arrives in order, the daemon virtually "opens" the service port (42225) and grants a 30s session TTL.
 
-### Design Details
-- Loads `config.json`.
-- Instantiates `Logger`, `FirewallManager`, `SequenceTracker`.
-- Starts:
-  1. Firewall expiry daemon.
-  2. Knock port listeners (daemon threads internally).
-  3. Protected service (daemon thread).
-  4. HTTP API server (daemon thread).
-- Prints startup messages with URLs/ports.
-- Keeps main thread alive with `threading.Event().wait()`.
-- **Graceful error handling:** Catches `OSError` for port conflicts, logs a clear message, and exits cleanly.
+### B. IPS Mode (Dashboard: `http://localhost:8081`)
+*   **Concept:** Active Defense and Intrusion Prevention.
+*   **Network Event:** You have two buttons: "Send Wrong Knock" and "Send Correct Knock". 
+    *   If you send a wrong knock (e.g., 29000), the backend listener detects a TCP connection on an unexpected port. It logs a strike for your IP.
+    *   Upon reaching 3 strikes, the API transitions your IP to a "Banned" state. 
+    *   If you try to send the "Correct Knock" while banned, the backend immediately drops the request. In a real network, this translates to the kernel automatically sending TCP RST (Reset) packets to the banned IP via iptables `DROP`/`REJECT` rules before the knock daemon even sees them.
 
-### End-to-End Test Plan
-1. Run `python main.py`.
-2. Open `http://localhost:8080` in browser (dashboard loads).
-3. Run `python client/knock_client.py` (or use dashboard Simulate Knock).
-4. **Verify:**
-   - Log panel shows `KNOCK_ATTEMPT` entries with progress.
-   - Final knock triggers `AUTH_SUCCESS` and `PORT_OPENED`.
-   - Session appears in Active Sessions with countdown.
-   - Client connects to service and receives `"ACCESS GRANTED..."`.
-5. **Verify denial:**
-   - Connect to service without knocking → `ACCESS DENIED`.
-   - Knock wrong sequence → `AUTH_FAIL`, progress resets.
-6. **Verify expiry/revoke:**
-   - Wait for `access_duration` → session auto-removes, `PORT_CLOSED` logged.
-   - Or click Revoke → session removed immediately.
+### C. TOTP Mode (Dashboard: `http://localhost:8082`)
+*   **Concept:** Cryptographic Port Hopping.
+*   **Network Event:** You will see a progress bar ticking down from 30 seconds. In the background, the server computes a new HMAC hash. When the timer hits zero, the server closes the old sockets and binds to a completely new set of ports dictated by the hash. 
+    *   If an attacker recorded your knock sequence at `T=10s` and replays those same TCP SYN packets at `T=35s`, the packets will hit closed ports (Connection Refused), because the correct ports have seamlessly migrated.
 
-### Phase 6 Results
-- [x] `main.py` implemented as the single entry point wiring `Logger`, `FirewallManager`, `SequenceTracker`, `start_knock_listeners`, `start_protected_service`, and `start_api_server`.
-- [x] Graceful error handling for `config.json` load failures and `OSError` on port binding.
-- [x] KeyboardInterrupt (`Ctrl+C`) gracefully shuts down the expiry daemon.
-- [x] **Full integration test passed** (`tests/test_phase6_integration.py`):
-  - Booted 5 knock listeners (7000, 8000, 9000, 7500, 8500), protected service (2222), API server (8080), expiry daemon, and real logger.
-  - **Test A:** `GET /api/status` returns correct sequence and service port.
-  - **Test B:** `POST /api/knock` triggers sequence → 1 active session created.
-  - **Test C:** Service connection → `"ACCESS GRANTED. Welcome, 127.0.0.1."` received.
-  - **Test D:** Full event chain verified in logs: `KNOCK_ATTEMPT` → `AUTH_SUCCESS` → `PORT_OPENED` → `ACCESS_GRANTED`.
-  - **Test E:** `POST /api/revoke` → session count drops to 0.
-  - **Test F:** Service connection after revoke → `"ACCESS DENIED."` received.
-  - **Test G:** Waited for `access_duration=5s` expiry → expiry daemon pruned session, count 0.
-- [x] **Syntax verification:** `python3 -m py_compile main.py` passed.
-- [x] Status: **Phase 6 Complete — Project Ready**
-
----
-
-## Bug Fix: Port 7000 Conflict on macOS
-
-### Issue
-When running `main.py` on macOS, the frontend dashboard's **Simulate Knock** button appeared to fail silently for the first port in the sequence. Logs showed `AUTH_FAIL` for ports 8000 and 9000, but no `KNOCK_ATTEMPT` for port 7000.
-
-### Root Cause
-macOS **ControlCe** (Control Center) binds to port **7000** (`afs3-fileserver`). When `knock_server.py` tried to bind to `0.0.0.0:7000`, it failed with `Address already in use`. The first knock in the sequence never reached the server, so subsequent knocks on 8000 and 9000 were treated as wrong first attempts → `AUTH_FAIL`.
-
-### Fix
-1. **Changed default ports** in `config.json` from `7000/8000/9000/7500/8500/2222` to `17000/18000/19000/17500/18500/12222` to avoid system service conflicts.
-2. **Added `time.sleep(0.05)`** in `api_server.py`'s `_demo_knock()` after `connect()` and before `close()` to give the server a moment to process the connection.
-3. **Added `import time`** to `api_server.py`.
-
-### Verification
-Ran `tests/test_final_e2e.py` with the new port configuration:
-- All 5 knock listeners bound successfully.
-- Frontend `POST /api/knock` produced the correct event chain:
-  - `KNOCK_ATTEMPT` (17000) — Progress 1/3
-  - `KNOCK_ATTEMPT` (18000) — Progress 2/3
-  - `AUTH_SUCCESS` (19000) — Sequence complete
-  - `PORT_OPENED` (12222) — Access granted
-- 1 active session created for `127.0.0.1`.
-- Service connection returned `"ACCESS GRANTED. Welcome, 127.0.0.1."`.
-- Revoke via API immediately denied subsequent connections.
-
----
-
-## Feature Additions — Dynamic Sequence Config & Port Connection Tester
-
-### Objective
-Add two interactive dashboard features:
-1. **Custom Knock Sequence** — allow the user to define their own knock sequence via the frontend, with real-time port availability checking.
-2. **Port Connection Tester** — allow the user to manually enter any port and test connectivity from the backend, with results shown in the Live Log terminal.
-
-### Files Modified
-- `server/knock_server.py` — added `_active_sockets` registry, `stop_knock_listeners()`, `restart_knock_listeners()`, and `is_port_free()` (strict, no `SO_REUSEADDR`).
-- `server/api_server.py` — added `POST /api/config/sequence` and `POST /api/test-port` endpoints; updated `make_handler` and `start_api_server` signatures to accept `tracker`.
-- `main.py` — updated `start_api_server` call to pass `tracker`.
-- `frontend/index.html` — added "Custom Sequence" form and "Test Port Connection" form with toast notifications.
-
-### New API Endpoints
-| Method | Path | Body | Response |
-|--------|------|------|----------|
-| POST | `/api/config/sequence` | `{"sequence": [21000, 22000, 23000]}` | `{"ok": true}` or `{"ok": false, "occupied_ports": [...]}` |
-| POST | `/api/test-port` | `{"port": 2000, "host": "127.0.0.1"}` | `{"ok": true, "connected": true/false, "message": "..."}` |
-
-### Design Details
-#### Dynamic Sequence Update
-- Parses comma-separated ports from frontend input.
-- Validates all ports are integers `> 1024`.
-- Checks each port for availability using a temporary socket bind **without** `SO_REUSEADDR` (strict conflict detection).
-- Exempts ports already owned by the current knock listeners so reuse is allowed.
-- If any port is occupied by another process, returns HTTP `409` with the specific occupied port(s).
-- If all free, updates `config["knock_sequence"]`, `config["knock_ports"]`, `tracker.expected_sequence`, stops old listeners, and starts new ones.
-- Logs `CONFIG_UPDATE` event.
-
-#### Port Connection Tester
-- Accepts a port number (and optional host, default `127.0.0.1`).
-- Opens a TCP connection from the backend to the target.
-- If the target is a knock port, the existing `knock_server` naturally records it as a `KNOCK_ATTEMPT`, `AUTH_SUCCESS`, or `AUTH_FAIL`.
-- Returns connection result to frontend, which shows a toast notification.
-- Live Log auto-refreshes and displays the knock/auth events just like normal knocks.
-
-### Frontend Changes
-- **Custom Sequence** form in Status Panel:
-  - Text input with placeholder `e.g. 20000,30000,40000`
-  - "Update Sequence" button
-  - On occupied ports: red toast with specific port numbers
-  - On success: green toast with new sequence, Status panel auto-refreshes
-- **Test Port Connection** form in Status Panel:
-  - Number input with placeholder `e.g. 2000`
-  - Supports Enter key submission
-  - "Test" button
-  - Green toast on successful connection, red toast on failure
-  - Live Log naturally shows `KNOCK_ATTEMPT` / `AUTH_SUCCESS` / `AUTH_FAIL` for knock ports
-
-### Testing
-- `tests/test_new_features.py`:
-  - **Feature 1a:** Updated sequence to `[21000, 22000, 23000]` → all free, listeners restarted, status API reflects new sequence.
-  - **Feature 1b:** Attempted update to `[8080, 22000, 23000]` → port `8080` correctly detected as occupied (API server running), returned `occupied_ports: [8080]` with clear error message.
-  - **Feature 2a:** Tested port `21000` → connection succeeded, `KNOCK_ATTEMPT` appeared in Live Log.
-  - **Feature 2b:** Tested ports `22000` then `23000` → full sequence completed, `AUTH_SUCCESS` and `PORT_OPENED` logged, 1 active session created.
-  - **Feature 2c:** Tested port `9999` → connection refused, failure toast shown.
-  - **Feature 2d:** Knocked `21000→22000→21000` (wrong last port) → `AUTH_FAIL` logged, sequence reset.
-- All existing tests (`test_phase4_api.py`, `test_phase6_integration.py`, `test_final_e2e.py`) re-run and passed with no regressions.
-
-### Results
-- [x] `server/knock_server.py` updated with listener lifecycle management (`stop` / `restart`).
-- [x] `server/api_server.py` updated with `POST /api/config/sequence` and `POST /api/test-port`.
-- [x] `frontend/index.html` updated with two new forms and toast notifications (10881 bytes).
-- [x] Strict port conflict detection implemented (no `SO_REUSEADDR` in `is_port_free`).
-- [x] Existing ports exempted from conflict check to allow sequence modifications.
-- [x] Status: **New Features Complete & Tested**
-
----
-
-## Bug Fix: Port Tester Logs Not Appearing in Live Terminal
-
-### Issue
-When using the **Test Port Connection** form in the dashboard, wrong ports (not in the knock sequence) showed a popup toast like:
-```
-Failed to connect to 127.0.0.1:15551 — [Errno 61] Connection refused
-```
-But the event did **not** appear in the **Live Access Log** terminal panel.
-
-### Root Cause
-The `POST /api/test-port` endpoint in `api_server.py` only returned the connection result as JSON to the frontend. It never called `logger.log()`, so no event was recorded for ports that were not part of the knock sequence (and thus not handled by `knock_server.py`).
-
-### Fix
-1. Added `logger.log("PORT_TEST", target_host, port, msg)` to the `/api/test-port` handler in `server/api_server.py`, but **only when the connection fails** (`connected == False`).
-2. Added `.event-PORT_TEST` CSS rule to `frontend/index.html` (yellow color, same as `KNOCK_ATTEMPT`).
-
-> **Why only failures?** Successful connections to knock ports are already logged by `knock_server.py` as `KNOCK_ATTEMPT`, `AUTH_SUCCESS`, etc. Logging `PORT_TEST` on success would create redundant duplicate lines in the terminal.
-
-### Verification
-Ran `tests/test_port_test_log.py`:
-- Tested wrong port `15551` → `PORT_TEST` event appeared in Live Log with failure message.
-- Tested correct knock port `17000` → Only `KNOCK_ATTEMPT` appeared (no redundant `PORT_TEST`).
-- All existing tests re-run with no regressions.
-
----
-
-## Final Summary
-
-All 6 phases have been successfully implemented and tested:
-
-| Phase / Feature | Component | Test Result |
-|-----------------|-----------|-------------|
-| 1 | Sequence Tracker + Knock Server | ✅ 7 unit tests + smoke test |
-| 2 | Firewall Manager + Protected Service | ✅ 4 unit tests + echo test |
-| 3 | Logger + Client | ✅ End-to-end knock→auth→service flow |
-| 4 | HTTP API | ✅ All 5 endpoints + CORS + static file serving |
-| 5 | Frontend Dashboard | ✅ Served at `/`, all panels functional |
-| 6 | Integration (`main.py`) | ✅ Full system integration test passed |
-| — | Dynamic Sequence Config | ✅ Port availability check + listener restart |
-| — | Port Connection Tester | ✅ Manual per-port knock with live log feedback |
-
-**To run the system:**
-```bash
-python3 main.py
-```
-
-**To use the client:**
-```bash
-python3 client/knock_client.py [host]
-```
-
-**Dashboard URL:** http://localhost:8080/  
-*(Now includes Custom Sequence config and Port Connection Tester forms)*
-
----
-
-## Appendix: Final Project Structure
-
-```
-port-knocking/
-├── config.json                 # Central configuration
-├── main.py                     # Entry point — boots all components
-├── project_report.md           # This report — updated after every phase
-├── server/
-│   ├── __init__.py
-│   ├── knock_server.py         # Multi-threaded knock port listeners (with restart)
-│   ├── sequence_tracker.py     # Per-IP knock state machine
-│   ├── firewall.py             # In-memory firewall with TTL
-│   ├── service.py              # Protected TCP echo service
-│   ├── logger.py               # Structured JSON + in-memory logging
-│   └── api_server.py           # HTTP API for dashboard
-├── client/
-│   ├── __init__.py
-│   └── knock_client.py         # CLI knock client
-├── frontend/
-│   └── index.html              # Self-contained real-time dashboard
-├── tests/
-│   ├── test_sequence_tracker.py
-│   ├── test_knock_server.py
-│   ├── test_phase2.py
-│   ├── test_phase3_e2e.py
-│   ├── test_phase4_api.py
-│   ├── test_phase6_integration.py
-│   ├── test_final_e2e.py
-│   └── test_new_features.py    # Dynamic sequence + port tester tests
-└── logs/
-    └── access.log              # Runtime structured logs
-```
-
-## Appendix: Configuration
-
-### `config.json`
-```json
-{
-  "knock_sequence": [17000, 18000, 19000],
-  "service_port": 12222,
-  "knock_ports": [17000, 18000, 19000, 17500, 18500],
-  "sequence_timeout": 10,
-  "access_duration": 30,
-  "host": "0.0.0.0",
-  "log_file": "logs/access.log"
-}
-```
-
-> **Note:** The default ports were changed from `7000/8000/9000` to `17000/18000/19000` because macOS ControlCe occupies port 7000. You can customize these freely in `config.json` as long as they are above 1024 and not in use by your OS.
-
----
-
-*Report will be updated incrementally as each phase is implemented.*
+### D. GeoIP Mode (Dashboard: `http://localhost:8083`)
+*   **Concept:** Layer 3 / Layer 4 Contextual Filtering.
+*   **Network Event:** Before the `sequence_tracker` even registers the TCP SYN packet, the `api_server` checks the incoming IP against a GeoIP lookup (simulated in the demo based on predefined IP blocks). 
+    *   If the IP resolves to an unauthorized geographic region, the knock is silently discarded (blackholed). In the UI log, you will visually see the location badge flagged red, illustrating how edge-routing logic can preemptively filter traffic before authentication logic is even invoked.

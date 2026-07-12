@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Port Knocking — Demo Hub</title>
+<meta name="description" content="Port Knocking Based Dynamic Firewall Authentication — explore Original, IPS, TOTP, and GeoIP demo modes.">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-2: #21262d;
+    --border: #30363d;
+    --border-muted: #21262d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --subtle: #6e7681;
+    --accent: #0f766e;
+    --accent-bright: #14b8a6;
+    --accent-glow: rgba(20, 184, 166, 0.15);
+    --danger: #f85149;
+    --danger-glow: rgba(248, 81, 73, 0.12);
+    --warn: #d29922;
+    --warn-glow: rgba(210, 153, 34, 0.12);
+    --success: #3fb950;
+    --success-glow: rgba(63, 185, 80, 0.12);
+    --purple: #7c3aed;
+    --purple-glow: rgba(124, 58, 237, 0.12);
+    --font: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --mono: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    --radius: 16px;
+    --shadow: 0 0 0 1px var(--border), 0 16px 64px rgba(0, 0, 0, 0.5);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated background grid ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(20, 184, 166, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20, 184, 166, 0.03) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Glowing orbs ── */
+  .orb {
+    position: fixed;
+    border-radius: 999px;
+    filter: blur(80px);
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.35;
+    animation: float 12s ease-in-out infinite;
+  }
+  .orb-1 { width: 500px; height: 500px; background: rgba(14, 165, 233, 0.18); top: -150px; left: -100px; animation-delay: 0s; }
+  .orb-2 { width: 400px; height: 400px; background: rgba(20, 184, 166, 0.15); bottom: -100px; right: -80px; animation-delay: -4s; }
+  .orb-3 { width: 300px; height: 300px; background: rgba(124, 58, 237, 0.1); top: 40%; left: 60%; animation-delay: -8s; }
+
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0); }
+    33% { transform: translate(20px, -30px); }
+    66% { transform: translate(-15px, 20px); }
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    width: min(1160px, calc(100% - 40px));
+    margin: 0 auto;
+    padding: 52px 0 80px;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 72px;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .brand-mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), #0ea5e9);
+    display: grid;
+    place-items: center;
+    box-shadow: 0 0 0 1px rgba(20, 184, 166, 0.3), 0 8px 24px rgba(20, 184, 166, 0.2);
+  }
+
+  .brand-mark svg { width: 22px; height: 22px; color: white; }
+
+  .brand-text h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text);
+  }
+
+  .brand-text p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    border: 1px solid rgba(20, 184, 166, 0.25);
+    background: rgba(20, 184, 166, 0.08);
+    color: var(--accent-bright);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    border-radius: 999px;
+    background: var(--accent-bright);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center;
+    margin-bottom: 72px;
+  }
+
+  .hero-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 24px;
+  }
+
+  .hero h2 {
+    font-size: clamp(36px, 6vw, 64px);
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #e6edf3 30%, #8b949e 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero h2 .accent {
+    background: linear-gradient(135deg, var(--accent-bright), #0ea5e9);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .hero p {
+    font-size: 17px;
+    color: var(--muted);
+    max-width: 580px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  /* ── Demo cards grid ── */
+  .demos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 20px;
+    margin-bottom: 64px;
+  }
+
+  .demo-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--text);
+    transition: box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: pointer;
+  }
+
+  .demo-card:hover {
+    box-shadow: var(--shadow);
+  }
+
+  .demo-card.original { --card-color: var(--accent-bright); --card-glow: var(--accent-glow); }
+  .demo-card.ips       { --card-color: var(--danger);        --card-glow: var(--danger-glow); }
+  .demo-card.totp      { --card-color: var(--warn);          --card-glow: var(--warn-glow); }
+  .demo-card.geoip     { --card-color: var(--success);       --card-glow: var(--success-glow); }
+
+  .demo-card:hover { border-color: var(--card-color); box-shadow: 0 0 0 1px var(--card-color), 0 24px 80px var(--card-glow), 0 4px 24px rgba(0,0,0,0.4); }
+
+  /* Top color stripe */
+  .demo-card::before {
+    content: '';
+    display: block;
+    height: 3px;
+    background: var(--card-color);
+    opacity: 0;
+    transition: opacity 0.25s ease;
+  }
+  .demo-card:hover::before { opacity: 1; }
+
+  .card-body {
+    padding: 28px 28px 20px;
+    flex: 1;
+  }
+
+  .card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    display: grid;
+    place-items: center;
+    margin-bottom: 18px;
+    color: var(--card-color);
+    transition: background 0.25s, box-shadow 0.25s;
+  }
+
+  .demo-card:hover .card-icon {
+    background: var(--card-glow);
+    box-shadow: 0 0 0 1px var(--card-color), 0 4px 16px var(--card-glow);
+  }
+
+  .card-icon svg { width: 24px; height: 24px; }
+
+  .card-mode {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--card-color);
+    margin-bottom: 6px;
+  }
+
+  .card-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin-bottom: 10px;
+  }
+
+  .card-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin-bottom: 16px;
+  }
+
+  .card-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  .card-footer {
+    padding: 16px 28px;
+    border-top: 1px solid var(--border-muted);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .card-port {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--subtle);
+  }
+
+  .card-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--card-color);
+    background: transparent;
+    color: var(--card-color);
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  .demo-card:hover .card-cta {
+    background: var(--card-color);
+    color: var(--bg);
+  }
+
+  .card-cta svg { width: 14px; height: 14px; }
+
+  /* ── Architecture section ── */
+  .arch-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 40px;
+    margin-bottom: 40px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .section-head h3 {
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .section-head p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .arch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+  }
+
+  .arch-item {
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .arch-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .arch-value {
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent-bright);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    text-align: center;
+    color: var(--subtle);
+    font-size: 12px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+  }
+
+  .footer a { color: var(--muted); text-decoration: none; }
+  .footer a:hover { color: var(--accent-bright); }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .shell { padding: 32px 0 60px; }
+    .hero h2 { font-size: 36px; }
+    .arch-section { padding: 24px; }
+    .topbar { margin-bottom: 48px; }
+    .hero { margin-bottom: 48px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="shell">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M7 10V8a5 5 0 0 1 10 0v2"/>
+          <rect x="4.5" y="10" width="15" height="10" rx="2"/>
+          <path d="M12 14v2"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <h1>Port Knocking Auth</h1>
+        <p>Dynamic Firewall Authentication System</p>
+      </div>
+    </div>
+    <div class="badge">
+      <span class="badge-dot"></span>
+      4 Demos Running
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-eyebrow">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+      Research Demo Hub
+    </div>
+    <h2>Choose Your <span class="accent">Demo Mode</span></h2>
+    <p>Each mode demonstrates a distinct extension of Port Knocking — from intrusion prevention to geolocation filtering. Each runs its own backend engine.</p>
+  </section>
+
+  <!-- Demo cards -->
+  <div class="demos-grid">
+
+    <!-- Original Mode -->
+    <a class="demo-card original" href="http://localhost:8084/dashboard" id="card-original">
+      <div class="card-body">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M7 10V8a5 5 0 0 1 10 0v2"/>
+            <rect x="4.5" y="10" width="15" height="10" rx="2"/>
+            <path d="M12 14v2"/>
+          </svg>
+        </div>
+        <div class="card-mode">Original Mode</div>
+        <div class="card-title">Classic Port Knocking</div>
+        <p class="card-desc">The foundational implementation. Send a precise sequence of port knocks to dynamically open a protected service port for your IP.</p>
+        <div class="card-chips">
+          <span class="chip">Sequence Auth</span>
+          <span class="chip">Session Expiry</span>
+          <span class="chip">Live Logs</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="card-port">localhost:8084</span>
+        <span class="card-cta">
+          Open Demo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 8l4 4-4 4"/></svg>
+        </span>
+      </div>
+    </a>
+
+    <!-- IPS Mode -->
+    <a class="demo-card ips" href="http://localhost:8081/" id="card-ips">
+      <div class="card-body">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9.5 10.5L11 12l3.5-3.5"/>
+          </svg>
+        </div>
+        <div class="card-mode">IPS Mode</div>
+        <div class="card-title">Intrusion Prevention</div>
+        <p class="card-desc">Extends port knocking with an Intrusion Prevention System. Wrong knock sequences accumulate strikes, triggering automatic IP bans.</p>
+        <div class="card-chips">
+          <span class="chip">Strike Counter</span>
+          <span class="chip">IP Banning</span>
+          <span class="chip">Auto-Unban</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="card-port">localhost:8081</span>
+        <span class="card-cta">
+          Open Demo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 8l4 4-4 4"/></svg>
+        </span>
+      </div>
+    </a>
+
+    <!-- TOTP Mode -->
+    <a class="demo-card totp" href="http://localhost:8082/" id="card-totp">
+      <div class="card-body">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <div class="card-mode">TOTP Mode</div>
+        <div class="card-title">Time-Based Sequences</div>
+        <p class="card-desc">The knock sequence rotates every 30 seconds based on a TOTP algorithm. Static eavesdropped sequences are immediately invalidated.</p>
+        <div class="card-chips">
+          <span class="chip">30s Rotation</span>
+          <span class="chip">TOTP HMAC</span>
+          <span class="chip">Replay-Safe</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="card-port">localhost:8082</span>
+        <span class="card-cta">
+          Open Demo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 8l4 4-4 4"/></svg>
+        </span>
+      </div>
+    </a>
+
+    <!-- GeoIP Mode -->
+    <a class="demo-card geoip" href="http://localhost:8083/" id="card-geoip">
+      <div class="card-body">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+          </svg>
+        </div>
+        <div class="card-mode">GeoIP Mode</div>
+        <div class="card-title">Location-Based Filtering</div>
+        <p class="card-desc">Adds geographic restrictions on top of port knocking. Only knock attempts originating from allowlisted countries are accepted.</p>
+        <div class="card-chips">
+          <span class="chip">Country Filter</span>
+          <span class="chip">IP Geolocation</span>
+          <span class="chip">Allowlist</span>
+        </div>
+      </div>
+      <div class="card-footer">
+        <span class="card-port">localhost:8083</span>
+        <span class="card-cta">
+          Open Demo
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 12h14M13 8l4 4-4 4"/></svg>
+        </span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Architecture overview -->
+  <section class="arch-section">
+    <div class="section-head">
+      <div>
+        <h3>System Architecture</h3>
+        <p>Each mode is an independent server — separate port listeners, firewall state, and API</p>
+      </div>
+    </div>
+    <div class="arch-grid">
+      <div class="arch-item">
+        <div class="arch-label">Original</div>
+        <div class="arch-value">:8084</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-label">IPS Demo</div>
+        <div class="arch-value">:8081</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-label">TOTP Demo</div>
+        <div class="arch-value">:8082</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-label">GeoIP Demo</div>
+        <div class="arch-value">:8083</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-label">Knock Ports</div>
+        <div class="arch-value">17k / 27k / 37k / 47k</div>
+      </div>
+      <div class="arch-item">
+        <div class="arch-label">Protocol</div>
+        <div class="arch-value">TCP (raw)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Port Knocking Based Dynamic Firewall Authentication &mdash; Research Demo &nbsp;&middot;&nbsp; All servers must be running via <code>run_all_demos.sh</code></p>
+  </footer>
+
+</div>
+
+<script>
+  // Ping each demo server and reflect status on cards
+  const demos = [
+    { id: 'card-original', url: 'http://localhost:8084/api/status' },
+    { id: 'card-ips',      url: 'http://localhost:8081/api/status' },
+    { id: 'card-totp',     url: 'http://localhost:8082/api/status' },
+    { id: 'card-geoip',   url: 'http://localhost:8083/api/status' },
+  ];
+
+  demos.forEach(({ id, url }) => {
+    fetch(url, { signal: AbortSignal.timeout(2000) })
+      .then(r => {
+        if (r.ok) {
+          const card = document.getElementById(id);
+          if (card) {
+            const footer = card.querySelector('.card-footer');
+            const port = card.querySelector('.card-port');
+            if (port) {
+              port.innerHTML = `<span style="color:var(--success);font-weight:600;">● Online</span> &nbsp;${port.textContent}`;
+            }
+          }
+        }
+      })
+      .catch(() => {
+        const card = document.getElementById(id);
+        if (card) {
+          const port = card.querySelector('.card-port');
+          if (port) {
+            port.innerHTML = `<span style="color:var(--muted);">○ Offline</span> &nbsp;${port.textContent}`;
+          }
+        }
+      });
+  });
+</script>
+</body>
+</html>

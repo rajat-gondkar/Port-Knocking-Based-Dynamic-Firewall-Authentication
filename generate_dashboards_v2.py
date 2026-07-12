@@ -12,7 +12,7 @@ def generate_dashboard(mode_name, title_html, subtitle, port, primary_nav_path, 
     html = re.sub(r'<p class="subtitle">Dynamic firewall authentication</p>', f'<p class="subtitle">{subtitle}</p>', html)
 
     # Set active nav button
-    html = html.replace('href="/" class="btn btn-primary"', 'href="/" class="btn btn-secondary"')
+    html = html.replace('href="http://localhost:8084/dashboard" class="btn btn-primary"', 'href="http://localhost:8084/dashboard" class="btn btn-secondary"')
     html = html.replace(f'href="{primary_nav_path}" class="btn btn-secondary"', f'href="{primary_nav_path}" class="btn btn-primary"')
 
     # Inject controls
@@ -304,7 +304,7 @@ ips_html = generate_dashboard(
     "Port Knocking <span style='color: var(--danger);'>+ IPS</span>", 
     "Intrusion Prevention System & Ban Logic", 
     8081, 
-    "/ips", 
+    "http://localhost:8081/", 
     ips_controls, 
     ips_panels, 
     ips_js
@@ -364,7 +364,7 @@ totp_html = generate_dashboard(
     "Port Knocking <span style='color: var(--accent);'>+ TOTP</span>", 
     "Time-Based One-Time Sequences", 
     8082, 
-    "/totp", 
+    "http://localhost:8082/", 
     "", 
     "", 
     totp_js
@@ -420,7 +420,7 @@ geoip_html = generate_dashboard(
     "Port Knocking <span style='color: var(--success);'>+ GeoIP</span>", 
     "Location-based Filtering", 
     8083, 
-    "/geoip", 
+    "http://localhost:8083/", 
     "", 
     "", 
     geoip_js

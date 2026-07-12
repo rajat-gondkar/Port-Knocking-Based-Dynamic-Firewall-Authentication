@@ -3,7 +3,7 @@ import os
 import socket
 import threading
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -54,7 +54,10 @@ def make_handler(config: dict, firewall: "FirewallManager", logger: "Logger", tr
         def do_GET(self):
             path = self.path
 
-            if path == "/":
+            if path == "/" or path == "/home":
+                self._serve_frontend("home.html")
+                return
+            if path == "/dashboard":
                 self._serve_frontend("index.html")
                 return
             if path == "/ips":
@@ -225,7 +228,7 @@ def start_api_server(config: dict, firewall: "FirewallManager", logger: "Logger"
     port = config.get("api_port", 8080)
 
     handler = make_handler(config, firewall, logger, tracker)
-    server = HTTPServer((host, port), handler)
+    server = ThreadingHTTPServer((host, port), handler)
 
     print(f"[+] API server started on http://{host}:{port}/")
     try:
